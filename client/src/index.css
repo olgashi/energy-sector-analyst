@@ -110,6 +110,117 @@ h1 {
   color: #294134;
 }
 
+.analyze-button {
+  margin-top: 16px;
+  padding: 9px 14px;
+  border: 1px solid rgba(23, 49, 38, 0.22);
+  border-radius: 8px;
+  color: #173126;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.analyze-button:hover:not(:disabled) {
+  border-color: rgba(23, 49, 38, 0.42);
+  background: #f2f7f4;
+}
+
+.analyze-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.analysis-panel {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(76, 122, 97, 0.18);
+}
+
+.analysis-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.analysis-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #173126;
+  background: #dcece2;
+}
+
+.analysis-status.failed {
+  color: #7a2222;
+  background: #f4dcdc;
+}
+
+.analysis-stage,
+.completed-stages {
+  margin: 0;
+  color: #496255;
+  font-size: 0.92rem;
+}
+
+.completed-stages {
+  margin-top: 10px;
+}
+
+.stage-output {
+  margin-top: 12px;
+}
+
+.stage-output summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #294134;
+}
+
+.stage-output pre {
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #173126;
+  color: #eef3f1;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.final-analysis {
+  margin-top: 18px;
+  color: #294134;
+}
+
+.final-analysis h2,
+.final-analysis h3 {
+  margin: 18px 0 8px;
+  color: #173126;
+}
+
+.final-analysis h2 {
+  font-size: 1.25rem;
+}
+
+.final-analysis h3 {
+  font-size: 1rem;
+}
+
+.final-analysis p,
+.final-analysis li {
+  line-height: 1.55;
+}
+
+.analysis-item {
+  margin-top: 10px;
+}
+
 @media (max-width: 640px) {
   .app-shell {
     padding: 16px;

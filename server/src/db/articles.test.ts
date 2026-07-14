@@ -4,6 +4,7 @@ import {
   getOrCreateSource,
   insertArticles,
   listRecentArticlesBySource,
+  searchStoredArticles,
 } from './articles.js';
 
 test('getOrCreateSource returns the source id', async () => {
@@ -105,4 +106,55 @@ test('listRecentArticlesBySource maps database rows to API rows', async () => {
       body: 'body',
     },
   ]);
+});
+
+test('searchStoredArticles excludes the selected article and maps results', async () => {
+  const calls: Array<{ sql: string; params: unknown[] }> = [];
+  const db = {
+    async query(sql: string, params: unknown[]) {
+      calls.push({ sql, params });
+      return {
+        rows: [
+          {
+            id: 12,
+            url: 'https://example.com/related',
+            title: 'Related article',
+            published_at: new Date('2026-07-14T11:00:00.000Z'),
+            content: 'related body',
+            source: 'Utility Dive',
+          },
+        ],
+      };
+    },
+  };
+
+  const articles = await searchStoredArticles('solar interconnection', 10, 3, db as never);
+
+  assert.match(calls[0].sql, /article\.id <> \$2/);
+  assert.deepEqual(calls[0].params, ['solar interconnection', 10, 3]);
+  assert.deepEqual(articles, [
+    {
+      articleId: 12,
+      title: 'Related article',
+      publishedAt: '2026-07-14T11:00:00.000Z',
+      url: 'https://example.com/related',
+      source: 'Utility Dive',
+      content: 'related body',
+    },
+  ]);
+});
+
+test('searchStoredArticles returns empty results for an empty query', async () => {
+  let queryCount = 0;
+  const db = {
+    async query() {
+      queryCount += 1;
+      return { rows: [] };
+    },
+  };
+
+  const articles = await searchStoredArticles(' ', 10, 3, db as never);
+
+  assert.deepEqual(articles, []);
+  assert.equal(queryCount, 0);
 });
