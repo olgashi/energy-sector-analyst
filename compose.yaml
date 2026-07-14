@@ -1,10 +1,38 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-energy_sector_analyst}
+      POSTGRES_USER: ${POSTGRES_USER:-energy_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   backend:
     build:
       context: ./server
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       HOST: ${BACKEND_HOST:-0.0.0.0}
       PORT: 3000
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
+      PGHOST: ${PGHOST:-postgres}
+      PGPORT: ${PGPORT:-5432}
+      PGDATABASE: ${PGDATABASE:-energy_sector_analyst}
+      PGUSER: ${PGUSER:-energy_app}
+      PGPASSWORD: ${PGPASSWORD:?set PGPASSWORD in .env}
+      PGSSLMODE: ${PGSSLMODE:-disable}
+      PGPOOL_MAX: ${PGPOOL_MAX:-10}
+      PG_CONNECT_TIMEOUT_MS: ${PG_CONNECT_TIMEOUT_MS:-5000}
+      PG_IDLE_TIMEOUT_MS: ${PG_IDLE_TIMEOUT_MS:-10000}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
 
@@ -14,6 +42,10 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api}
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     ports:
       - "8080:80"
+
+volumes:
+  postgres_data:
