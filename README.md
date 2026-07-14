@@ -11,6 +11,15 @@
 docker compose up --build
 ```
 
+The PostgreSQL schema is initialized automatically from `postgres/init/` the first time the database volume is created.
+
+If you already have a populated database volume and want to recreate the schema from scratch, remove the volume first:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
 Frontend: `http://localhost:8080`
 
 Backend: `http://localhost:3000`
