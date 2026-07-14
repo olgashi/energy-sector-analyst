@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { createAnalyzeArticleHandler } from './articles.js';
 import type { AnalysisRecord } from '../db/analysis.js';
 import type { FinalAnalysis, WorkflowProgressEvent } from '../analysis/types.js';
+import { UserSafeError } from '../analysis/errors.js';
 
 function createResponseMock() {
   const chunks: string[] = [];
@@ -289,6 +290,53 @@ test('failed workflow status is persisted with safe error details', async () => 
     message: 'Analysis failed. Please try again.',
   });
   assert.equal(failed?.eventType, 'workflow_failed');
+  assert.equal(failed?.stage, 'impact_analysis');
   assert.equal(failed?.error, 'Analysis failed. Please try again.');
   assert.doesNotMatch(JSON.stringify(events), /password leaked/);
+});
+
+test('safe workflow errors are returned to the frontend', async () => {
+  let failureMessage: string | null = null;
+  const res = createResponseMock();
+  const handler = createAnalyzeArticleHandler({
+    getArticle: async () => article,
+    findAnalysis: async () => null,
+    startAnalysisRecord: async () => createRecord(),
+    updateStage: async () => {},
+    updateStageResult: async () => {},
+    failAnalysisRecord: async (_id, _stage, message) => {
+      failureMessage = message;
+      return createRecord({
+        status: 'failed',
+        currentStage: 'researching',
+        errorMessage: message,
+      });
+    },
+    runWorkflow: async (_articleId, _version, deps) => {
+      await deps.emit?.({
+        runId: 'run-1',
+        eventType: 'stage_started',
+        stage: 'researching',
+        timestamp: '2026-07-14T12:00:00.000Z',
+      });
+      throw new UserSafeError(
+        'OpenAI API key is not configured. Set OPENAI_API_KEY and restart the backend.',
+      );
+    },
+  });
+
+  await handler(
+    { params: { articleId: '10' } } as unknown as Request,
+    res,
+    (() => {}) as NextFunction,
+  );
+
+  const failed = readEvents(res.chunks).at(-1);
+
+  assert.equal(
+    failureMessage,
+    'OpenAI API key is not configured. Set OPENAI_API_KEY and restart the backend.',
+  );
+  assert.equal(failed?.stage, 'researching');
+  assert.equal(failed?.error, failureMessage);
 });

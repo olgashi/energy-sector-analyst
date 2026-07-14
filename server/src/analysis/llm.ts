@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { UserSafeError } from './errors.js';
 
 export const defaultOpenAiModel = 'gpt-5-mini';
 
@@ -20,7 +21,9 @@ export function createOpenAiJsonGenerator(): GenerateJson {
 
   if (!apiKey) {
     return async () => {
-      throw new Error('OpenAI API key is not configured.');
+      throw new UserSafeError(
+        'OpenAI API key is not configured. Set OPENAI_API_KEY and restart the backend.',
+      );
     };
   }
 

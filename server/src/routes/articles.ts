@@ -177,6 +177,12 @@ export function createAnalyzeArticleHandler(
           error instanceof NotFoundError
             ? 'Article not found.'
             : toSafeErrorMessage(error);
+        console.error('Article analysis workflow failed', {
+          articleId,
+          analysisId: analysisRecord.id,
+          stage: currentStage,
+          error: toLogError(error),
+        });
         const failedRecord = await failAnalysisRecord(
           analysisRecord.id,
           currentStage,
@@ -186,7 +192,7 @@ export function createAnalyzeArticleHandler(
         writeSseEvent(res, {
           runId,
           eventType: 'workflow_failed',
-          stage: 'failed',
+          stage: currentStage,
           timestamp: new Date().toISOString(),
           result: analysisToResponse(failedRecord),
           error: safeMessage,
@@ -270,4 +276,19 @@ function analysisToResponse(record: AnalysisRecord) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
+}
+
+function toLogError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return sanitizeLogText(String(error));
+  }
+
+  return {
+    name: error.name,
+    message: sanitizeLogText(error.message),
+  };
+}
+
+function sanitizeLogText(value: string): string {
+  return value.replace(/sk-[A-Za-z0-9_-]+/g, 'sk-***');
 }
