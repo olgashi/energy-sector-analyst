@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { NextFunction, Request, Response } from 'express';
-import { getResourceArticles } from './resources.js';
+import { createGetResourceArticles } from './resources.js';
 
 function createResponseMock() {
   const response = {
@@ -21,74 +21,61 @@ function createResponseMock() {
 }
 
 test('getResourceArticles returns a parsed RSS document', async () => {
-  const originalFetch = globalThis.fetch;
   const req = {
     params: { resourceId: 'utility-dive' },
-  } as Request;
+  } as unknown as Request;
   const res = createResponseMock();
   const nextCalls: unknown[] = [];
   const next: NextFunction = (error?: unknown) => {
     nextCalls.push(error);
   };
-
-  globalThis.fetch = async () =>
-    new Response(
-      `<?xml version="1.0"?>
-      <rss version="2.0">
-        <channel>
-          <title>Utility Dive</title>
-          <item>
-            <title>Fresh article</title>
-            <link>https://example.com/fresh</link>
-            <pubDate>${new Date().toUTCString()}</pubDate>
-            <description><![CDATA[<p>Article body for preview testing.</p>]]></description>
-          </item>
-          <item>
-            <title>Old article</title>
-            <link>https://example.com/old</link>
-            <pubDate>Mon, 01 Jan 2024 00:00:00 GMT</pubDate>
-            <description>Old body</description>
-          </item>
-        </channel>
-      </rss>`,
+  const getResourceArticles = createGetResourceArticles(async (resource) => ({
+    resourceId: resource.id,
+    resourceName: resource.name,
+    sourceUrl: resource.url,
+    fetchedAt: '2026-07-14T10:30:00.000Z',
+    articles: [
       {
-        status: 200,
-        headers: { 'Content-Type': 'application/rss+xml' },
+        id: 12,
+        title: 'Fresh article',
+        url: 'https://example.com/fresh',
+        publishedAt: new Date().toISOString(),
+        body: 'Article body for preview testing.',
       },
-    );
+    ],
+  }));
 
-  try {
-    await getResourceArticles(req, res, next);
+  await getResourceArticles(req, res, next);
 
-    assert.equal(res.statusCode, 200);
-    assert.equal((res.body as { resourceId: string }).resourceId, 'utility-dive');
-    assert.equal(
-          (res.body as { articles: Array<{ title: string }> }).articles.length,
-      1,
-    );
-    assert.equal(
-      (res.body as { articles: Array<{ title: string }> }).articles[0]?.title,
-      'Fresh article',
-    );
-    assert.equal(
-      (res.body as { articles: Array<{ body: string }> }).articles[0]?.body,
-      'Article body for preview testing.',
-    );
-    assert.deepEqual(nextCalls, []);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.equal(res.statusCode, 200);
+  assert.equal((res.body as { resourceId: string }).resourceId, 'utility-dive');
+  assert.equal(
+    (res.body as { articles: Array<{ title: string }> }).articles.length,
+    1,
+  );
+  assert.equal(
+    (res.body as { articles: Array<{ title: string }> }).articles[0]?.title,
+    'Fresh article',
+  );
+  assert.equal(
+    (res.body as { articles: Array<{ body: string }> }).articles[0]?.body,
+    'Article body for preview testing.',
+  );
+  assert.deepEqual(nextCalls, []);
 });
 
 test('getResourceArticles returns 404 for an unknown resource', async () => {
   const req = {
     params: { resourceId: 'missing' },
-  } as Request;
+  } as unknown as Request;
   const res = createResponseMock();
   const nextCalls: unknown[] = [];
   const next: NextFunction = (error?: unknown) => {
     nextCalls.push(error);
   };
+  const getResourceArticles = createGetResourceArticles(async () => {
+    throw new Error('should not be called');
+  });
 
   await getResourceArticles(req, res, next);
 

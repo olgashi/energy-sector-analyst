@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/routes/health.test.ts src/routes/resources.test.ts src/services/rss.test.ts"
+    "test": "node --import tsx --test src/db/articles.test.ts src/routes/health.test.ts src/routes/resources.test.ts src/services/rss.test.ts"
   },
   "dependencies": {
     "express": "^4.21.2",
