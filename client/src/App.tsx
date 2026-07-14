@@ -116,6 +116,7 @@ function App() {
   const [analysisByArticle, setAnalysisByArticle] = useState<Record<number, AnalysisUiState>>({})
 
   async function analyzeArticle(articleId: number) {
+    console.info('[article-analysis] analyze clicked', { articleId, apiBaseUrl })
     setAnalysisByArticle((current) => ({
       ...current,
       [articleId]: createInitialAnalysisState(),
@@ -125,6 +126,13 @@ function App() {
       const response = await fetch(`${apiBaseUrl}/articles/${articleId}/analysis`, {
         method: 'POST',
       })
+      console.info('[article-analysis] POST response received', {
+        articleId,
+        status: response.status,
+        ok: response.ok,
+        hasBody: Boolean(response.body),
+        contentType: response.headers.get('content-type'),
+      })
 
       if (!response.ok || !response.body) {
         const message = response.status === 404 ? 'Article not found' : 'Analysis failed'
@@ -132,6 +140,13 @@ function App() {
       }
 
       await readEventStream(response.body, (event) => {
+        console.info('[article-analysis] stream event', {
+          articleId,
+          eventType: event.eventType,
+          stage: event.stage,
+          hasResult: event.result !== undefined,
+          error: event.error ?? null,
+        })
         setAnalysisByArticle((current) => ({
           ...current,
           [articleId]: applyWorkflowEvent(
@@ -140,7 +155,12 @@ function App() {
           ),
         }))
       })
+      console.info('[article-analysis] stream completed', { articleId })
     } catch (analysisError) {
+      console.error('[article-analysis] analyze failed', {
+        articleId,
+        error: analysisError,
+      })
       setAnalysisByArticle((current) => ({
         ...current,
         [articleId]: {
@@ -166,18 +186,29 @@ function App() {
         setError(null)
 
         const response = await fetch(`${apiBaseUrl}/resources/utility-dive/articles`)
+        console.info('[article-analysis] resource articles response', {
+          status: response.status,
+          ok: response.ok,
+        })
 
         if (!response.ok) {
           throw new Error('Failed to load articles')
         }
 
         const data: FeedDocument = await response.json()
+        console.info('[article-analysis] articles loaded', {
+          articleCount: data.articles.length,
+          resourceName: data.resourceName,
+        })
 
         if (!cancelled) {
           setDocument(data)
           void loadStoredAnalyses(data.articles, () => cancelled)
         }
       } catch (loadError) {
+        console.error('[article-analysis] article load failed', {
+          error: loadError,
+        })
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : 'Unknown error')
         }
@@ -199,24 +230,43 @@ function App() {
     articles: Article[],
     isCancelled: () => boolean,
   ) {
+    console.info('[article-analysis] loading stored analyses', {
+      articleCount: articles.length,
+    })
     const entries = await Promise.all(
       articles.map(async (article) => {
         const response = await fetch(`${apiBaseUrl}/articles/${article.id}/analysis`)
+        console.debug('[article-analysis] stored analysis response', {
+          articleId: article.id,
+          status: response.status,
+          ok: response.ok,
+        })
 
         if (!response.ok) {
           return null
         }
 
         const record = (await response.json()) as AnalysisRecord
+        console.info('[article-analysis] stored analysis loaded', {
+          articleId: article.id,
+          status: record.status,
+          currentStage: record.currentStage,
+          hasResult: Boolean(record.result),
+          errorMessage: record.errorMessage,
+        })
 
         return [article.id, analysisRecordToUiState(record)] as const
       }),
     )
 
     if (isCancelled()) {
+      console.info('[article-analysis] skipped stored analysis state update after cancellation')
       return
     }
 
+    console.info('[article-analysis] applying stored analyses', {
+      loadedCount: entries.filter((entry) => entry !== null).length,
+    })
     setAnalysisByArticle((current) => ({
       ...current,
       ...Object.fromEntries(entries.filter((entry) => entry !== null)),
@@ -401,10 +451,19 @@ async function readEventStream(
         .find((line) => line.startsWith('data: '))
 
       if (!dataLine) {
+        console.debug('[article-analysis] stream block without data line', { block })
         continue
       }
 
-      onEvent(JSON.parse(dataLine.slice('data: '.length)) as WorkflowEvent)
+      try {
+        onEvent(JSON.parse(dataLine.slice('data: '.length)) as WorkflowEvent)
+      } catch (parseError) {
+        console.error('[article-analysis] failed to parse stream event', {
+          dataLine,
+          parseError,
+        })
+        throw parseError
+      }
     }
   }
 }

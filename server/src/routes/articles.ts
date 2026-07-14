@@ -86,15 +86,28 @@ export function createAnalyzeArticleHandler(
       const article = await getArticle(articleId);
 
       if (!article) {
+        console.info('Article analysis requested for missing article', {
+          articleId,
+        });
         res.status(404).json({ error: 'Article not found' });
         return;
       }
 
       const existing = await findAnalysis(articleId, ANALYSIS_VERSION);
+      console.info('Article analysis request accepted', {
+        articleId,
+        analysisVersion: ANALYSIS_VERSION,
+        hasExistingAnalysis: Boolean(existing),
+        existingStatus: existing?.status ?? null,
+      });
 
       prepareSseResponse(res);
 
       if (existing?.status === 'completed') {
+        console.info('Returning stored completed article analysis', {
+          articleId,
+          analysisId: existing.id,
+        });
         writeSseEvent(res, {
           runId: `stored-${existing.id}`,
           eventType: 'workflow_completed',
@@ -111,14 +124,33 @@ export function createAnalyzeArticleHandler(
         ANALYSIS_VERSION,
       );
       const runId = randomUUID();
+      console.info('Article analysis workflow run started', {
+        articleId,
+        analysisId: analysisRecord.id,
+        runId,
+      });
       let currentStage: WorkflowStage = 'loading_article';
       let failed = false;
 
       const emit = async (event: WorkflowProgressEvent) => {
         currentStage = event.stage;
+        console.info('Article analysis workflow event', {
+          articleId,
+          analysisId: analysisRecord.id,
+          runId: event.runId,
+          eventType: event.eventType,
+          stage: event.stage,
+          hasResult: event.result !== undefined,
+          error: event.error ?? null,
+        });
 
         if (event.eventType === 'stage_started') {
           await updateStage(analysisRecord.id, event.stage);
+          console.info('Article analysis stage persisted', {
+            articleId,
+            analysisId: analysisRecord.id,
+            stage: event.stage,
+          });
         }
 
         if (event.eventType === 'stage_completed') {
@@ -131,8 +163,19 @@ export function createAnalyzeArticleHandler(
               stageResultKey,
               event.result ?? {},
             );
+            console.info('Article analysis stage result persisted', {
+              articleId,
+              analysisId: analysisRecord.id,
+              stage: event.stage,
+              stageResultKey,
+            });
           } else {
             await updateStage(analysisRecord.id, event.stage);
+            console.info('Article analysis stage persisted', {
+              articleId,
+              analysisId: analysisRecord.id,
+              stage: event.stage,
+            });
           }
         }
 
@@ -157,6 +200,11 @@ export function createAnalyzeArticleHandler(
           analysisRecord.id,
           finalAnalysis,
         );
+        console.info('Article analysis completed and persisted', {
+          articleId,
+          analysisId: completed.id,
+          runId,
+        });
         await emit({
           runId,
           eventType: 'stage_completed',

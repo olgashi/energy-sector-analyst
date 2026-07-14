@@ -31,28 +31,77 @@ export function createOpenAiJsonGenerator(): GenerateJson {
   const model = getConfiguredOpenAiModel();
 
   return async ({ system, prompt, schemaName, schema }) => {
-    const response = await client.responses.create({
+    console.info('OpenAI JSON generation started', {
       model,
-      input: [
-        {
-          role: 'system',
-          content: system,
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      text: {
-        format: {
-          type: 'json_schema',
-          name: schemaName,
-          schema,
-          strict: true,
-        },
-      },
+      schemaName,
+      promptLength: prompt.length,
     });
 
-    return JSON.parse(response.output_text);
+    try {
+      const response = await client.responses.create({
+        model,
+        input: [
+          {
+            role: 'system',
+            content: system,
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        text: {
+          format: {
+            type: 'json_schema',
+            name: schemaName,
+            schema,
+            strict: true,
+          },
+        },
+      });
+      console.info('OpenAI JSON generation completed', {
+        model,
+        schemaName,
+        responseId: response.id,
+        outputTextLength: response.output_text.length,
+      });
+
+      return JSON.parse(response.output_text);
+    } catch (error) {
+      console.error('OpenAI JSON generation failed', {
+        model,
+        schemaName,
+        error: toDiagnosticError(error),
+      });
+      throw error;
+    }
   };
+}
+
+function toDiagnosticError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return sanitizeDiagnosticText(String(error));
+  }
+
+  const details: Record<string, unknown> = {
+    name: error.name,
+    message: sanitizeDiagnosticText(error.message),
+  };
+  const record = error as unknown as Record<string, unknown>;
+
+  for (const key of ['status', 'code', 'type', 'param', 'request_id']) {
+    if (record[key] !== undefined) {
+      details[key] = sanitizeDiagnosticValue(record[key]);
+    }
+  }
+
+  return details;
+}
+
+function sanitizeDiagnosticValue(value: unknown): unknown {
+  return typeof value === 'string' ? sanitizeDiagnosticText(value) : value;
+}
+
+function sanitizeDiagnosticText(value: string): string {
+  return value.replace(/sk-[A-Za-z0-9_-]+/g, 'sk-***');
 }
