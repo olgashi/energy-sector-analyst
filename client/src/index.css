@@ -136,39 +136,79 @@ h1 {
   border-top: 1px solid rgba(76, 122, 97, 0.18);
 }
 
-.analysis-status-row {
+.analysis-stage-banner {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(76, 122, 97, 0.18);
+  border-radius: 8px;
+  background: #eef7f1;
 }
 
-.analysis-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 4px 10px;
+.analysis-stage-banner.completed {
+  background: #edf6f3;
+}
+
+.analysis-stage-banner.failed {
+  border-color: rgba(155, 45, 45, 0.22);
+  background: #f8eeee;
+}
+
+.analysis-spinner {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border: 3px solid rgba(76, 122, 97, 0.22);
+  border-top-color: #4c7a61;
   border-radius: 999px;
-  font-size: 0.86rem;
+  animation: spin 0.8s linear infinite;
+}
+
+.analysis-stage-kicker,
+.analysis-stage-current {
+  margin: 0;
+}
+
+.analysis-stage-kicker {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4c7a61;
+}
+
+.analysis-stage-current {
+  margin-top: 3px;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #173126;
-  background: #dcece2;
 }
 
-.analysis-status.failed {
-  color: #7a2222;
-  background: #f4dcdc;
+.completed-stage-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.analysis-stage,
-.completed-stages {
-  margin: 0;
+.completed-stage {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #496255;
+  background: #eef3f1;
+  font-size: 0.82rem;
+}
+
+.debug-output {
+  margin-top: 12px;
+}
+
+.debug-output > summary {
+  cursor: pointer;
   color: #496255;
   font-size: 0.92rem;
-}
-
-.completed-stages {
-  margin-top: 10px;
+  font-weight: 700;
 }
 
 .stage-output {
@@ -219,6 +259,26 @@ h1 {
 
 .analysis-item {
   margin-top: 10px;
+}
+
+.concept-details {
+  margin-top: 6px;
+}
+
+.concept-details summary {
+  cursor: pointer;
+  color: #4c7a61;
+  font-weight: 700;
+}
+
+.concept-details p {
+  margin-top: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 640px) {

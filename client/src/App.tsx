@@ -93,7 +93,26 @@ function toPreview(body: string) {
 }
 
 function stageLabel(stage: WorkflowStage) {
-  return stage.replaceAll('_', ' ')
+  switch (stage) {
+    case 'loading_article':
+      return 'Loading article'
+    case 'researching':
+      return 'Researching article'
+    case 'searching_related_articles':
+      return 'Searching stored articles'
+    case 'technical_analysis':
+      return 'Explaining key concepts'
+    case 'impact_analysis':
+      return 'Assessing stakeholder impact'
+    case 'synthesizing':
+      return 'Synthesizing final analysis'
+    case 'saving':
+      return 'Saving result'
+    case 'completed':
+      return 'Completed'
+    case 'failed':
+      return 'Failed'
+  }
 }
 
 function createInitialAnalysisState(): AnalysisUiState {
@@ -469,33 +488,45 @@ async function readEventStream(
 }
 
 function AnalysisPanel({ state }: { state: AnalysisUiState }) {
+  const currentStageLabel = state.currentStage ? stageLabel(state.currentStage) : 'Pending'
+
   return (
     <section className="analysis-panel">
-      <div className="analysis-status-row">
-        <span className={`analysis-status ${state.error ? 'failed' : ''}`}>
-          {state.status === 'failed'
-            ? 'Failed'
-            : state.status === 'running'
-              ? 'Running'
-              : 'Completed'}
-        </span>
-        <span className="analysis-stage">
-          Current stage: {state.currentStage ? stageLabel(state.currentStage) : 'pending'}
-        </span>
+      <div className={`analysis-stage-banner ${state.status}`}>
+        {state.status === 'running' ? <span className="analysis-spinner" /> : null}
+        <div>
+          <p className="analysis-stage-kicker">
+            {state.status === 'running'
+              ? 'Analysis in progress'
+              : state.status === 'failed'
+                ? 'Analysis failed'
+                : 'Analysis complete'}
+          </p>
+          <p className="analysis-stage-current">{currentStageLabel}</p>
+        </div>
       </div>
 
       {state.completedStages.length > 0 ? (
-        <p className="completed-stages">
-          Completed: {state.completedStages.map(stageLabel).join(', ')}
-        </p>
+        <div className="completed-stage-list" aria-label="Completed stages">
+          {state.completedStages.map((stage) => (
+            <span className="completed-stage" key={stage}>
+              {stageLabel(stage)}
+            </span>
+          ))}
+        </div>
       ) : null}
 
-      {Object.entries(state.stageResults).map(([key, value]) => (
-        <details className="stage-output" key={key}>
-          <summary>{key}</summary>
-          <pre>{JSON.stringify(value, null, 2)}</pre>
+      {Object.keys(state.stageResults).length > 0 ? (
+        <details className="debug-output">
+          <summary>Debug details</summary>
+          {Object.entries(state.stageResults).map(([key, value]) => (
+            <details className="stage-output" key={key}>
+              <summary>{stageResultLabel(key)}</summary>
+              <pre>{JSON.stringify(value, null, 2)}</pre>
+            </details>
+          ))}
         </details>
-      ))}
+      ) : null}
 
       {state.error ? <p className="status error">{state.error}</p> : null}
 
@@ -522,8 +553,11 @@ function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
         {analysis.technicalConcepts.map((concept) => (
           <div className="analysis-item" key={concept.term}>
             <strong>{concept.term}</strong>
-            <p>{concept.explanation}</p>
             <p>{concept.relevance}</p>
+            <details className="concept-details">
+              <summary>Definition</summary>
+              <p>{concept.explanation}</p>
+            </details>
           </div>
         ))}
       </section>
@@ -562,6 +596,23 @@ function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
       <AnalysisList title="Context limitations" items={analysis.contextLimitations} />
     </div>
   )
+}
+
+function stageResultLabel(key: string) {
+  switch (key) {
+    case 'researcher':
+      return 'Research notes'
+    case 'relatedArticleSearch':
+      return 'Stored article search'
+    case 'technicalExplainer':
+      return 'Concept analysis'
+    case 'impactAnalyst':
+      return 'Stakeholder impact analysis'
+    case 'synthesizer':
+      return 'Final synthesis'
+    default:
+      return key
+  }
 }
 
 function AnalysisList({ title, items }: { title: string; items: string[] }) {

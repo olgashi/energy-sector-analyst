@@ -7,6 +7,10 @@ import {
   type RelatedStoredArticle,
 } from '../db/articles.js';
 import {
+  findTechnicalConcepts,
+  upsertTechnicalConcepts,
+} from '../db/technicalConcepts.js';
+import {
   finalAnalysisSchema,
   impactAnalystSchema,
   researcherSchema,
@@ -43,6 +47,9 @@ const StateAnnotation = Annotation.Root({
   article: Annotation<ArticleForAnalysis | undefined>,
   researcher: Annotation<ResearcherOutput | undefined>,
   relatedArticleSearch: Annotation<RelatedArticleSearchOutput | undefined>,
+  cachedTechnicalConcepts: Annotation<
+    Awaited<ReturnType<typeof findTechnicalConcepts>> | undefined
+  >,
   technicalExplainer: Annotation<TechnicalExplainerOutput | undefined>,
   impactAnalyst: Annotation<ImpactAnalystOutput | undefined>,
   finalAnalysis: Annotation<FinalAnalysis | undefined>,
@@ -51,6 +58,8 @@ const StateAnnotation = Annotation.Root({
 export type AnalysisWorkflowDeps = {
   getArticle?: typeof getArticleById;
   searchArticles?: typeof searchStoredArticles;
+  findConcepts?: typeof findTechnicalConcepts;
+  saveConcepts?: typeof upsertTechnicalConcepts;
   generateJson?: GenerateJson;
   emit?: (event: WorkflowProgressEvent) => Promise<void> | void;
   runId?: string;
@@ -75,6 +84,8 @@ export async function runAnalysisWorkflow(
   };
   const getArticle = deps.getArticle ?? getArticleById;
   const searchArticles = deps.searchArticles ?? searchStoredArticles;
+  const findConcepts = deps.findConcepts ?? findTechnicalConcepts;
+  const saveConcepts = deps.saveConcepts ?? upsertTechnicalConcepts;
   const generateJson = deps.generateJson ?? createOpenAiJsonGenerator();
 
   await emit({
@@ -145,6 +156,12 @@ export async function runAnalysisWorkflow(
           state.relatedArticleSearch,
           'relatedArticleSearch',
         );
+        const cachedTechnicalConcepts = await findConcepts(researcher.keyTerms);
+        console.info('Technical concept cache lookup completed', {
+          articleId: state.articleId,
+          requestedTerms: researcher.keyTerms.length,
+          cacheHits: cachedTechnicalConcepts.length,
+        });
         const technicalExplainer = validateTechnicalExplainerOutput(
           await generateJson({
             schemaName: 'technical_explainer_output',
@@ -153,16 +170,30 @@ export async function runAnalysisWorkflow(
               'You are the technical explainer agent. Explain stable energy industry, technical, regulatory, or market concepts. Return only structured JSON.',
             prompt: [
               'Explain important concepts needed to understand this article.',
+              'Keep each explanation concise: target 2-4 sentences and no more than 120 words.',
+              'Keep each relevance field to 1 sentence focused on this article.',
               'Use stable model knowledge only for general explanations.',
+              'Cached concept definitions, when supplied, are reusable background. Reuse their substance and avoid unnecessary redefinition, but still write article-specific relevance.',
               'Do not invent current laws, decisions, company actions, dates, or numerical claims.',
               formatArticleForPrompt(article),
               `Research notes:\n${JSON.stringify(researcher)}`,
               `Related articles:\n${JSON.stringify(summarizeRelatedArticles(relatedArticleSearch.articles))}`,
+              `Cached concept definitions:\n${JSON.stringify(cachedTechnicalConcepts)}`,
             ].join('\n\n'),
           }),
         );
+        await saveConcepts(
+          technicalExplainer.technicalConcepts.map((concept) => ({
+            term: concept.term,
+            explanation: concept.explanation,
+          })),
+        );
+        console.info('Technical concept cache upsert completed', {
+          articleId: state.articleId,
+          conceptCount: technicalExplainer.technicalConcepts.length,
+        });
 
-        return { technicalExplainer };
+        return { cachedTechnicalConcepts, technicalExplainer };
       }),
     )
     .addNode('impactAnalysis', async (state: AnalysisWorkflowState) =>
@@ -217,6 +248,12 @@ export async function runAnalysisWorkflow(
               'You are the synthesizer and verifier. Combine prior structured outputs, remove unsupported claims, preserve uncertainty, and return only structured JSON.',
             prompt: [
               'Produce the final article analysis.',
+              'Keep the final analysis concise without dropping essential context.',
+              'Overview: 2-3 sentences maximum.',
+              'What happened: 3-5 short items maximum.',
+              'Background: 4 short items maximum, only context that directly changes interpretation.',
+              'Technical concept explanations should stay concise because the UI can expand them.',
+              'Stakeholder impacts: prioritize the most material stakeholders and keep reasoning direct.',
               'Separate article facts, related article facts, model background, and agent interpretation using sourceType.',
               'Do not introduce major new claims.',
               'Use the articleId and analysisVersion supplied here.',
@@ -350,6 +387,6 @@ function formatArticleForPrompt(article: ArticleForAnalysis): string {
     `Title: ${article.title}`,
     `Published at: ${article.publishedAt ?? 'unknown'}`,
     `URL: ${article.url}`,
-    `Content:\n${article.body.slice(0, 8000)}`,
+    `Content:\n${article.body}`,
   ].join('\n');
 }

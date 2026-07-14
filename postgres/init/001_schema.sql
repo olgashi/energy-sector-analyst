@@ -46,3 +46,12 @@ CREATE INDEX IF NOT EXISTS article_analysis_article_version_idx
 
 CREATE INDEX IF NOT EXISTS article_analysis_status_idx
   ON article_analysis (status);
+
+CREATE TABLE IF NOT EXISTS technical_concept (
+  id BIGSERIAL PRIMARY KEY,
+  normalized_term TEXT NOT NULL UNIQUE,
+  display_term TEXT NOT NULL,
+  explanation TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -2,6 +2,7 @@ import type {
   ArticleForAnalysis,
   RelatedStoredArticle,
 } from '../db/articles.js';
+import type { CachedTechnicalConcept } from '../db/technicalConcepts.js';
 
 export const workflowStages = [
   'loading_article',
@@ -130,6 +131,7 @@ export type AnalysisWorkflowState = {
   article?: ArticleForAnalysis;
   researcher?: ResearcherOutput;
   relatedArticleSearch?: RelatedArticleSearchOutput;
+  cachedTechnicalConcepts?: CachedTechnicalConcept[];
   technicalExplainer?: TechnicalExplainerOutput;
   impactAnalyst?: ImpactAnalystOutput;
   finalAnalysis?: FinalAnalysis;

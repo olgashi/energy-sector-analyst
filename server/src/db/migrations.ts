@@ -36,6 +36,19 @@ const migrations = [
         ON article_analysis (status);
     `,
   },
+  {
+    id: '002_technical_concepts',
+    sql: `
+      CREATE TABLE IF NOT EXISTS technical_concept (
+        id BIGSERIAL PRIMARY KEY,
+        normalized_term TEXT NOT NULL UNIQUE,
+        display_term TEXT NOT NULL,
+        explanation TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `,
+  },
 ];
 
 export async function runMigrations(db: Queryable = getPool()): Promise<void> {
