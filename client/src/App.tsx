@@ -12,6 +12,8 @@ type FeedDocument = {
   articles: Article[]
 }
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
@@ -36,7 +38,7 @@ function App() {
         setLoading(true)
         setError(null)
 
-        const response = await fetch('/api/resources/utility-dive/articles')
+        const response = await fetch(`${apiBaseUrl}/resources/utility-dive/articles`)
 
         if (!response.ok) {
           throw new Error('Failed to load articles')
