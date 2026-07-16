@@ -148,12 +148,15 @@ function createInitialAnalysisState(): AnalysisUiState {
 function App() {
   const [resources, setResources] = useState<ResourceSummary[]>([])
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
+  const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null)
   const [document, setDocument] = useState<FeedDocument | null>(null)
   const [loadingResources, setLoadingResources] = useState(true)
   const [loadingArticles, setLoadingArticles] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysisByArticle, setAnalysisByArticle] = useState<Record<number, AnalysisUiState>>({})
   const loading = loadingResources || loadingArticles
+  const selectedArticle =
+    document?.articles.find((article) => article.id === selectedArticleId) ?? null
 
   async function analyzeArticle(articleId: number) {
     console.info('[article-analysis] analyze clicked', { articleId, apiBaseUrl })
@@ -287,6 +290,7 @@ function App() {
         setLoadingArticles(true)
         setError(null)
         setDocument(null)
+        setSelectedArticleId(null)
 
         const response = await fetch(`${apiBaseUrl}/resources/${selectedResourceId}/articles`)
         console.info('[article-analysis] resource articles response', {
@@ -409,40 +413,126 @@ function App() {
         {error ? <p className="status error">{error}</p> : null}
 
         {!loading && !error && document ? (
-          <div className="article-list">
-            {document.articles.length > 0 ? (
-              document.articles.map((article) => (
-                <article className="article-card" key={article.url}>
-                  <a
-                    className="article-title"
-                    href={article.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {article.title}
-                  </a>
-                  <p className="article-date">{formatDate(article.publishedAt)}</p>
-                  <p className="article-preview">{toPreview(article.body)}</p>
-                  <button
-                    className="analyze-button"
-                    type="button"
-                    disabled={analysisByArticle[article.id]?.loading}
-                    onClick={() => void analyzeArticle(article.id)}
-                  >
-                    {analysisByArticle[article.id]?.loading ? 'Analyzing...' : 'Analyze'}
-                  </button>
-                  {analysisByArticle[article.id] ? (
-                    <AnalysisPanel state={analysisByArticle[article.id]} />
-                  ) : null}
-                </article>
-              ))
-            ) : (
-              <p className="status">No recent articles found.</p>
-            )}
+          <div className="analysis-layout">
+            <section className="article-column" aria-label="Articles">
+              {document.articles.length > 0 ? (
+                <div className="article-list">
+                  {document.articles.map((article) => (
+                    <article
+                      className={`article-card ${
+                        selectedArticleId === article.id ? 'selected' : ''
+                      }`}
+                      key={article.url}
+                    >
+                      <div className="article-card-header">
+                        <a
+                          className="article-title"
+                          href={article.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {article.title}
+                        </a>
+                        {analysisByArticle[article.id] ? (
+                          <span className={`analysis-badge ${analysisByArticle[article.id].status}`}>
+                            {analysisByArticle[article.id].loading
+                              ? 'Running'
+                              : analysisByArticle[article.id].status}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="article-date">{formatDate(article.publishedAt)}</p>
+                      <p className="article-preview">{toPreview(article.body)}</p>
+                      <button
+                        className="select-article-button"
+                        type="button"
+                        onClick={() => setSelectedArticleId(article.id)}
+                      >
+                        {selectedArticleId === article.id ? 'Selected' : 'View analysis'}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="status">No recent articles found.</p>
+              )}
+            </section>
+            <AnalysisWorkspace
+              article={selectedArticle}
+              state={selectedArticle ? analysisByArticle[selectedArticle.id] : undefined}
+              onAnalyze={(articleId) => void analyzeArticle(articleId)}
+            />
           </div>
         ) : null}
       </section>
     </main>
+  )
+}
+
+function AnalysisWorkspace({
+  article,
+  state,
+  onAnalyze,
+}: {
+  article: Article | null
+  state: AnalysisUiState | undefined
+  onAnalyze: (articleId: number) => void
+}) {
+  if (!article) {
+    return (
+      <aside className="analysis-workspace">
+        <div className="analysis-empty-state">
+          <p className="analysis-empty-title">Select an article</p>
+          <p>
+            Choose a story from the list to review its saved analysis or generate a
+            new one.
+          </p>
+        </div>
+      </aside>
+    )
+  }
+
+  return (
+    <aside className="analysis-workspace">
+      <div className="analysis-workspace-header">
+        <p className="eyebrow">Selected article</p>
+        <h2>{article.title}</h2>
+        <p className="article-date">{formatDate(article.publishedAt)}</p>
+        <a className="source-link" href={article.url} target="_blank" rel="noreferrer">
+          Open original article
+        </a>
+      </div>
+
+      {state ? (
+        <>
+          <AnalysisPanel state={state} />
+          {state.status === 'failed' ? (
+            <button
+              className="analyze-button"
+              type="button"
+              onClick={() => onAnalyze(article.id)}
+            >
+              Try again
+            </button>
+          ) : null}
+        </>
+      ) : (
+        <div className="analysis-empty-state">
+          <p className="analysis-empty-title">No analysis yet</p>
+          <p>
+            Generate a structured analysis covering what happened, stakeholder
+            impact, uncertainty, and related stored coverage.
+          </p>
+          <button
+            className="analyze-button"
+            type="button"
+            onClick={() => onAnalyze(article.id)}
+          >
+            Analyze article
+          </button>
+        </div>
+      )}
+    </aside>
   )
 }
 

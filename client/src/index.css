@@ -36,7 +36,7 @@ select {
 }
 
 .app-panel {
-  max-width: 860px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 28px;
   border: 1px solid rgba(23, 49, 38, 0.12);
@@ -101,7 +101,6 @@ h1 {
 .article-list {
   display: grid;
   gap: 16px;
-  margin-top: 28px;
 }
 
 .article-card {
@@ -109,6 +108,16 @@ h1 {
   border-radius: 16px;
   background: #f9fbf9;
   border: 1px solid rgba(76, 122, 97, 0.16);
+}
+
+.article-card.selected {
+  border-color: rgba(76, 122, 97, 0.55);
+  box-shadow: 0 0 0 2px rgba(76, 122, 97, 0.1);
+}
+
+.article-card-header {
+  display: grid;
+  gap: 10px;
 }
 
 .article-title {
@@ -133,7 +142,79 @@ h1 {
   color: #294134;
 }
 
-.analyze-button {
+.analysis-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+  gap: 22px;
+  align-items: start;
+  margin-top: 28px;
+}
+
+.article-column,
+.analysis-workspace {
+  min-width: 0;
+}
+
+.analysis-workspace {
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid rgba(76, 122, 97, 0.16);
+  border-radius: 16px;
+  background: #f9fbf9;
+}
+
+.analysis-workspace-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(76, 122, 97, 0.16);
+}
+
+.analysis-workspace-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  color: #173126;
+}
+
+.source-link {
+  display: inline-flex;
+  margin-top: 10px;
+  color: #4c7a61;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.source-link:hover {
+  text-decoration: underline;
+}
+
+.analysis-empty-state {
+  padding: 18px;
+  border: 1px dashed rgba(76, 122, 97, 0.24);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #496255;
+}
+
+.analysis-empty-title {
+  margin: 0 0 8px;
+  color: #173126;
+  font-weight: 700;
+}
+
+.analysis-empty-state p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.analysis-empty-state .analyze-button {
+  margin-top: 16px;
+}
+
+.analyze-button,
+.select-article-button {
   margin-top: 16px;
   padding: 9px 14px;
   border: 1px solid rgba(23, 49, 38, 0.22);
@@ -143,20 +224,46 @@ h1 {
   cursor: pointer;
 }
 
-.analyze-button:hover:not(:disabled) {
+.analyze-button:hover:not(:disabled),
+.select-article-button:hover:not(:disabled) {
   border-color: rgba(23, 49, 38, 0.42);
   background: #f2f7f4;
 }
 
-.analyze-button:disabled {
+.analyze-button:disabled,
+.select-article-button:disabled {
   cursor: wait;
   opacity: 0.65;
 }
 
+.analysis-badge {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #294134;
+  background: #eef3f1;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.analysis-badge.completed {
+  color: #24513a;
+  background: #dfeee5;
+}
+
+.analysis-badge.running {
+  color: #315f70;
+  background: #e1eef2;
+}
+
+.analysis-badge.failed {
+  color: #8a2727;
+  background: #f3dddd;
+}
+
 .analysis-panel {
   margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(76, 122, 97, 0.18);
 }
 
 .analysis-stage-banner {
@@ -319,5 +426,14 @@ h1 {
 
   .app-panel {
     padding: 20px;
+  }
+
+  .analysis-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-workspace {
+    position: static;
+    max-height: none;
   }
 }
