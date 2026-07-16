@@ -68,6 +68,8 @@ type FinalAnalysis = {
   contextLimitations: string[]
 }
 
+type TechnicalConcept = FinalAnalysis['technicalConcepts'][number]
+
 type AnalysisUiState = {
   status: 'running' | 'completed' | 'failed'
   loading: boolean
@@ -80,6 +82,15 @@ type AnalysisUiState = {
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const activityMessages = [
+  'Reading the article and identifying the central event...',
+  'Separating reported facts from interpretation...',
+  'Checking stored articles for useful context...',
+  'Mapping technical, market, and regulatory concepts...',
+  'Assessing who may be affected...',
+  'Verifying uncertainty and confidence levels...',
+  'Preparing the final analysis...',
+]
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-US', {
@@ -489,6 +500,21 @@ async function readEventStream(
 
 function AnalysisPanel({ state }: { state: AnalysisUiState }) {
   const currentStageLabel = state.currentStage ? stageLabel(state.currentStage) : 'Pending'
+  const [activityIndex, setActivityIndex] = useState(0)
+
+  useEffect(() => {
+    setActivityIndex(0)
+
+    if (state.status !== 'running') {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActivityIndex((current) => (current + 1) % activityMessages.length)
+    }, 2500)
+
+    return () => window.clearInterval(intervalId)
+  }, [state.status, state.currentStage])
 
   return (
     <section className="analysis-panel">
@@ -503,30 +529,11 @@ function AnalysisPanel({ state }: { state: AnalysisUiState }) {
                 : 'Analysis complete'}
           </p>
           <p className="analysis-stage-current">{currentStageLabel}</p>
+          {state.status === 'running' ? (
+            <p className="analysis-activity">{activityMessages[activityIndex]}</p>
+          ) : null}
         </div>
       </div>
-
-      {state.completedStages.length > 0 ? (
-        <div className="completed-stage-list" aria-label="Completed stages">
-          {state.completedStages.map((stage) => (
-            <span className="completed-stage" key={stage}>
-              {stageLabel(stage)}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {Object.keys(state.stageResults).length > 0 ? (
-        <details className="debug-output">
-          <summary>Debug details</summary>
-          {Object.entries(state.stageResults).map(([key, value]) => (
-            <details className="stage-output" key={key}>
-              <summary>{stageResultLabel(key)}</summary>
-              <pre>{JSON.stringify(value, null, 2)}</pre>
-            </details>
-          ))}
-        </details>
-      ) : null}
 
       {state.error ? <p className="status error">{state.error}</p> : null}
 
@@ -536,30 +543,39 @@ function AnalysisPanel({ state }: { state: AnalysisUiState }) {
 }
 
 function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
+  const [activeConcept, setActiveConcept] = useState<TechnicalConcept | null>(null)
+  const conceptMatches = buildConceptMatches(analysis.technicalConcepts)
+
   return (
     <div className="final-analysis">
       <h2>Analysis</h2>
       <AnalysisList
         title="What happened"
         items={analysis.whatHappened.map((item) => `${item.statement} (${item.sourceType})`)}
+        conceptMatches={conceptMatches}
+        onExplainConcept={setActiveConcept}
       />
       <AnalysisList
         title="Background"
         items={analysis.background.map((item) => `${item.statement} (${item.sourceType})`)}
+        conceptMatches={conceptMatches}
+        onExplainConcept={setActiveConcept}
       />
-      <section>
-        <h3>Important concepts</h3>
-        {analysis.technicalConcepts.map((concept) => (
-          <div className="analysis-item" key={concept.term}>
-            <strong>{concept.term}</strong>
-            <p>{concept.relevance}</p>
-            <details className="concept-details">
-              <summary>Definition</summary>
-              <p>{concept.explanation}</p>
-            </details>
-          </div>
-        ))}
-      </section>
+      {activeConcept ? (
+        <div className="concept-explanation">
+          <button
+            className="concept-close"
+            type="button"
+            onClick={() => setActiveConcept(null)}
+            aria-label="Close explanation"
+          >
+            x
+          </button>
+          <strong>{activeConcept.term}</strong>
+          <p>{activeConcept.explanation}</p>
+          <p>{activeConcept.relevance}</p>
+        </div>
+      ) : null}
       <section>
         <h3>Stakeholder impact</h3>
         {analysis.stakeholderImpacts.map((impact) => (
@@ -567,14 +583,28 @@ function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
             <strong>
               {impact.stakeholder} ({impact.confidence})
             </strong>
-            <p>{impact.impact}</p>
-            <p>{impact.reasoning}</p>
+            <p>
+              <HighlightedText
+                text={impact.impact}
+                conceptMatches={conceptMatches}
+                onExplainConcept={setActiveConcept}
+              />
+            </p>
+            <p>
+              <HighlightedText
+                text={impact.reasoning}
+                conceptMatches={conceptMatches}
+                onExplainConcept={setActiveConcept}
+              />
+            </p>
           </div>
         ))}
       </section>
       <AnalysisList
         title="Uncertainty"
         items={analysis.uncertainties.map((item) => `${item.issue}: ${item.explanation}`)}
+        conceptMatches={conceptMatches}
+        onExplainConcept={setActiveConcept}
       />
       <section>
         <h3>Related articles</h3>
@@ -597,31 +627,58 @@ function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
   )
 }
 
-function stageResultLabel(key: string) {
-  switch (key) {
-    case 'researcher':
-      return 'Research notes'
-    case 'relatedArticleSearch':
-      return 'Stored article search'
-    case 'technicalExplainer':
-      return 'Concept analysis'
-    case 'impactAnalyst':
-      return 'Stakeholder impact analysis'
-    case 'synthesizer':
-      return 'Final synthesis'
-    default:
-      return key
-  }
+type ConceptMatch = {
+  concept: TechnicalConcept
+  normalizedTerm: string
 }
 
-function AnalysisList({ title, items }: { title: string; items: string[] }) {
+function buildConceptMatches(concepts: TechnicalConcept[]): ConceptMatch[] {
+  const seen = new Set<string>()
+
+  return concepts
+    .map((concept) => ({
+      concept,
+      normalizedTerm: normalizeConceptTerm(concept.term),
+    }))
+    .filter((entry) => {
+      if (entry.normalizedTerm.length < 4 || seen.has(entry.normalizedTerm)) {
+        return false
+      }
+
+      seen.add(entry.normalizedTerm)
+      return true
+    })
+    .sort((left, right) => right.normalizedTerm.length - left.normalizedTerm.length)
+}
+
+function normalizeConceptTerm(term: string) {
+  return term.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function AnalysisList({
+  title,
+  items,
+  conceptMatches,
+  onExplainConcept,
+}: {
+  title: string
+  items: string[]
+  conceptMatches?: ConceptMatch[]
+  onExplainConcept?: (concept: TechnicalConcept) => void
+}) {
   return (
     <section>
       <h3>{title}</h3>
       {items.length > 0 ? (
         <ul>
           {items.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item}>
+              <HighlightedText
+                text={item}
+                conceptMatches={conceptMatches ?? []}
+                onExplainConcept={onExplainConcept ?? (() => {})}
+              />
+            </li>
           ))}
         </ul>
       ) : (
@@ -629,6 +686,91 @@ function AnalysisList({ title, items }: { title: string; items: string[] }) {
       )}
     </section>
   )
+}
+
+function HighlightedText({
+  text,
+  conceptMatches,
+  onExplainConcept,
+}: {
+  text: string
+  conceptMatches: ConceptMatch[]
+  onExplainConcept: (concept: TechnicalConcept) => void
+}) {
+  if (conceptMatches.length === 0) {
+    return <>{text}</>
+  }
+
+  const lowerText = text.toLowerCase()
+  const ranges: Array<{ start: number; end: number; concept: TechnicalConcept }> = []
+
+  for (const match of conceptMatches) {
+    let searchFrom = 0
+
+    while (searchFrom < text.length) {
+      const index = lowerText.indexOf(match.normalizedTerm, searchFrom)
+
+      if (index === -1) {
+        break
+      }
+
+      const end = index + match.normalizedTerm.length
+
+      if (isWordBoundary(text, index - 1) && isWordBoundary(text, end)) {
+        const overlaps = ranges.some(
+          (range) => index < range.end && end > range.start,
+        )
+
+        if (!overlaps) {
+          ranges.push({ start: index, end, concept: match.concept })
+        }
+      }
+
+      searchFrom = end
+    }
+  }
+
+  if (ranges.length === 0) {
+    return <>{text}</>
+  }
+
+  ranges.sort((left, right) => left.start - right.start)
+
+  const parts = []
+  let cursor = 0
+
+  for (const range of ranges) {
+    if (range.start > cursor) {
+      parts.push(text.slice(cursor, range.start))
+    }
+
+    parts.push(
+      <button
+        className="concept-term"
+        type="button"
+        key={`${range.start}-${range.end}-${range.concept.term}`}
+        onClick={() => onExplainConcept(range.concept)}
+        title="Explain this"
+      >
+        {text.slice(range.start, range.end)}
+      </button>,
+    )
+    cursor = range.end
+  }
+
+  if (cursor < text.length) {
+    parts.push(text.slice(cursor))
+  }
+
+  return <>{parts}</>
+}
+
+function isWordBoundary(text: string, index: number) {
+  if (index < 0 || index >= text.length) {
+    return true
+  }
+
+  return !/[a-z0-9]/i.test(text[index])
 }
 
 export default App

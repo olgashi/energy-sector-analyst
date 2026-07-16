@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/analysis/validation.test.ts src/db/articles.test.ts src/db/technicalConcepts.test.ts src/routes/articles.test.ts src/routes/health.test.ts src/routes/resources.test.ts src/services/rss.test.ts"
+    "test": "node --import tsx --test src/analysis/validation.test.ts src/db/articles.test.ts src/db/technicalConcepts.test.ts src/routes/articles.test.ts src/routes/health.test.ts src/routes/resources.test.ts src/services/articleExtraction.test.ts src/services/rss.test.ts"
   },
   "dependencies": {
     "@langchain/core": "^1.2.2",
@@ -17,7 +17,9 @@
     "morgan": "^1.10.1",
     "pg": "^8.22.0",
     "rss-parser": "^3.13.0",
-    "openai": "^6.47.0"
+    "openai": "^6.47.0",
+    "@mozilla/readability": "^0.6.0",
+    "jsdom": "^29.1.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -25,6 +27,7 @@
     "@types/node": "^24.0.0",
     "@types/pg": "^8.20.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "@types/jsdom": "^27.0.0"
   }
 }

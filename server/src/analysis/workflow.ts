@@ -10,6 +10,7 @@ import {
   findTechnicalConcepts,
   upsertTechnicalConcepts,
 } from '../db/technicalConcepts.js';
+import { extractArticleTextFromUrl } from '../services/articleExtraction.js';
 import {
   finalAnalysisSchema,
   impactAnalystSchema,
@@ -60,6 +61,7 @@ export type AnalysisWorkflowDeps = {
   searchArticles?: typeof searchStoredArticles;
   findConcepts?: typeof findTechnicalConcepts;
   saveConcepts?: typeof upsertTechnicalConcepts;
+  extractArticleText?: typeof extractArticleTextFromUrl;
   generateJson?: GenerateJson;
   emit?: (event: WorkflowProgressEvent) => Promise<void> | void;
   runId?: string;
@@ -86,6 +88,7 @@ export async function runAnalysisWorkflow(
   const searchArticles = deps.searchArticles ?? searchStoredArticles;
   const findConcepts = deps.findConcepts ?? findTechnicalConcepts;
   const saveConcepts = deps.saveConcepts ?? upsertTechnicalConcepts;
+  const extractArticleText = deps.extractArticleText ?? extractArticleTextFromUrl;
   const generateJson = deps.generateJson ?? createOpenAiJsonGenerator();
 
   await emit({
@@ -102,11 +105,37 @@ export async function runAnalysisWorkflow(
           throw new NotFoundError('Article not found.');
         }
 
-        if (article.body.trim().length < minimumArticleContentLength) {
+        const storedSummary = article.body.trim();
+        const extracted = await extractArticleText(article.url);
+        const extractedText = extracted.text.trim();
+        const selectedBody =
+          extracted.status === 'extracted' &&
+          extractedText.length > storedSummary.length
+            ? extractedText
+            : storedSummary;
+
+        console.info('Article content selected for analysis', {
+          articleId: state.articleId,
+          extractedStatus: extracted.status,
+          extractedLength: extractedText.length,
+          storedSummaryLength: storedSummary.length,
+          selectedSource:
+            selectedBody === extractedText && extractedText.length > 0
+              ? 'extracted'
+              : 'stored_summary',
+          extractionError: extracted.error ?? null,
+        });
+
+        if (selectedBody.length < minimumArticleContentLength) {
           throw new UserSafeError('Article content is too short to analyze.');
         }
 
-        return { article };
+        return {
+          article: {
+            ...article,
+            body: selectedBody,
+          },
+        };
       }),
     )
     .addNode('research', async (state: AnalysisWorkflowState) =>
