@@ -25,7 +25,15 @@ const parser = new Parser<Record<string, never>, ParserItem>();
 const RECENT_WINDOW_HOURS = 72;
 
 export async function fetchRssText(url: string): Promise<string> {
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: {
+      Accept:
+        'application/rss+xml, application/xml, text/xml, text/html;q=0.8, */*;q=0.5',
+      'User-Agent':
+        process.env.RSS_FETCH_USER_AGENT ??
+        'EnergySectorAnalyst/0.1 RSS reader',
+    },
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch RSS feed: ${response.status}`);
@@ -60,7 +68,7 @@ export function extractBodyText(rawValue: string | undefined): string {
 
 export function normalizeArticle(item: ParserItem): FeedArticle | null {
   const title = item.title?.trim();
-  const link = item.link?.trim();
+  const link = normalizeLink(item.link ?? item.guid);
   const publishedValue = item.isoDate ?? item.pubDate;
 
   if (!title || !link || !publishedValue) {
@@ -82,8 +90,22 @@ export function normalizeArticle(item: ParserItem): FeedArticle | null {
         item.content ??
         item['content:encoded'] ??
         item.summary,
-    ),
+    ) || title,
   };
+}
+
+function normalizeLink(value: string | undefined): string | undefined {
+  const link = value?.trim();
+
+  if (!link) {
+    return undefined;
+  }
+
+  try {
+    return new URL(link).toString();
+  } catch {
+    return undefined;
+  }
 }
 
 export function filterRecentArticles(

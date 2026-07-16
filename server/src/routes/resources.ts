@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { RequestHandler } from 'express';
-import { getResourceById } from '../resources/config.js';
+import { getResourceById, listResources } from '../resources/config.js';
 import {
   fetchAndPersistRssDocument,
   type PersistedFeedDocument,
@@ -14,6 +14,16 @@ type FetchDocument = (resource: {
   type: 'rss';
   url: string;
 }) => Promise<PersistedFeedDocument>;
+
+export const listConfiguredResources: RequestHandler = (_req, res) => {
+  res.json(
+    listResources().map((resource) => ({
+      id: resource.id,
+      name: resource.name,
+      type: resource.type,
+    })),
+  );
+};
 
 export function createGetResourceArticles(
   fetchDocument: FetchDocument = fetchAndPersistRssDocument,
@@ -37,6 +47,7 @@ export function createGetResourceArticles(
 
 export const getResourceArticles = createGetResourceArticles();
 
+router.get('/', listConfiguredResources);
 router.get('/:resourceId/articles', getResourceArticles);
 
 export default router;

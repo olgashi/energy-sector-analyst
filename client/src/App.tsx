@@ -13,6 +13,12 @@ type FeedDocument = {
   articles: Article[]
 }
 
+type ResourceSummary = {
+  id: string
+  name: string
+  type: 'rss'
+}
+
 type WorkflowStage =
   | 'loading_article'
   | 'researching'
@@ -140,10 +146,14 @@ function createInitialAnalysisState(): AnalysisUiState {
 }
 
 function App() {
+  const [resources, setResources] = useState<ResourceSummary[]>([])
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
   const [document, setDocument] = useState<FeedDocument | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loadingResources, setLoadingResources] = useState(true)
+  const [loadingArticles, setLoadingArticles] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysisByArticle, setAnalysisByArticle] = useState<Record<number, AnalysisUiState>>({})
+  const loading = loadingResources || loadingArticles
 
   async function analyzeArticle(articleId: number) {
     console.info('[article-analysis] analyze clicked', { articleId, apiBaseUrl })
@@ -210,13 +220,77 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
-    async function loadArticles() {
+    async function loadResources() {
       try {
-        setLoading(true)
+        setLoadingResources(true)
         setError(null)
 
-        const response = await fetch(`${apiBaseUrl}/resources/utility-dive/articles`)
+        const response = await fetch(`${apiBaseUrl}/resources`)
+        console.info('[article-analysis] resources response', {
+          status: response.status,
+          ok: response.ok,
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to load news sources')
+        }
+
+        const data = (await response.json()) as ResourceSummary[]
+        console.info('[article-analysis] resources loaded', {
+          resourceCount: data.length,
+        })
+
+        if (!cancelled) {
+          setResources(data)
+          setSelectedResourceId((current) => {
+            if (current && data.some((resource) => resource.id === current)) {
+              return current
+            }
+
+            return (
+              data.find((resource) => resource.id === 'utility-dive')?.id ??
+              data[0]?.id ??
+              null
+            )
+          })
+        }
+      } catch (resourceError) {
+        console.error('[article-analysis] resource load failed', {
+          error: resourceError,
+        })
+        if (!cancelled) {
+          setError(resourceError instanceof Error ? resourceError.message : 'Unknown error')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingResources(false)
+        }
+      }
+    }
+
+    void loadResources()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedResourceId) {
+      return
+    }
+
+    let cancelled = false
+
+    async function loadArticles() {
+      try {
+        setLoadingArticles(true)
+        setError(null)
+        setDocument(null)
+
+        const response = await fetch(`${apiBaseUrl}/resources/${selectedResourceId}/articles`)
         console.info('[article-analysis] resource articles response', {
+          resourceId: selectedResourceId,
           status: response.status,
           ok: response.ok,
         })
@@ -237,6 +311,7 @@ function App() {
         }
       } catch (loadError) {
         console.error('[article-analysis] article load failed', {
+          resourceId: selectedResourceId,
           error: loadError,
         })
         if (!cancelled) {
@@ -244,7 +319,7 @@ function App() {
         }
       } finally {
         if (!cancelled) {
-          setLoading(false)
+          setLoadingArticles(false)
         }
       }
     }
@@ -254,7 +329,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [selectedResourceId])
 
   async function loadStoredAnalyses(
     articles: Article[],
@@ -309,8 +384,26 @@ function App() {
         <p className="eyebrow">Energy Sector Analyst</p>
         <h1>Recent utility news</h1>
         <p className="intro">
-          Articles from the last 72 hours for {document?.resourceName ?? 'Utility Dive'}.
+          Articles from the last 72 hours for {document?.resourceName ?? 'the selected source'}.
         </p>
+
+        {resources.length > 0 ? (
+          <div className="source-selector">
+            <label htmlFor="source-select">News source</label>
+            <select
+              id="source-select"
+              value={selectedResourceId ?? ''}
+              onChange={(event) => setSelectedResourceId(event.target.value)}
+              disabled={loadingArticles}
+            >
+              {resources.map((resource) => (
+                <option key={resource.id} value={resource.id}>
+                  {resource.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         {loading ? <p className="status">Loading articles...</p> : null}
         {error ? <p className="status error">{error}</p> : null}
@@ -501,6 +594,7 @@ async function readEventStream(
 function AnalysisPanel({ state }: { state: AnalysisUiState }) {
   const currentStageLabel = state.currentStage ? stageLabel(state.currentStage) : 'Pending'
   const [activityIndex, setActivityIndex] = useState(0)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   useEffect(() => {
     setActivityIndex(0)
@@ -516,6 +610,20 @@ function AnalysisPanel({ state }: { state: AnalysisUiState }) {
     return () => window.clearInterval(intervalId)
   }, [state.status, state.currentStage])
 
+  useEffect(() => {
+    setElapsedSeconds(0)
+
+    if (state.status !== 'running') {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds((current) => current + 1)
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [state.status])
+
   return (
     <section className="analysis-panel">
       <div className={`analysis-stage-banner ${state.status}`}>
@@ -530,7 +638,12 @@ function AnalysisPanel({ state }: { state: AnalysisUiState }) {
           </p>
           <p className="analysis-stage-current">{currentStageLabel}</p>
           {state.status === 'running' ? (
-            <p className="analysis-activity">{activityMessages[activityIndex]}</p>
+            <>
+              <p className="analysis-activity">{activityMessages[activityIndex]}</p>
+              <p className="analysis-elapsed">
+                {elapsedSeconds === 0 ? 'Starting...' : `${elapsedSeconds}s elapsed`}
+              </p>
+            </>
           ) : null}
         </div>
       </div>

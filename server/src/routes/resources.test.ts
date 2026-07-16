@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { NextFunction, Request, Response } from 'express';
-import { createGetResourceArticles } from './resources.js';
+import {
+  createGetResourceArticles,
+  listConfiguredResources,
+} from './resources.js';
 
 function createResponseMock() {
   const response = {
@@ -19,6 +22,24 @@ function createResponseMock() {
 
   return response as Response & { statusCode: number; body: unknown };
 }
+
+test('listConfiguredResources returns available RSS sources', () => {
+  const req = {} as Request;
+  const res = createResponseMock();
+
+  listConfiguredResources(req, res, () => undefined);
+
+  const resources = res.body as Array<{ id: string; name: string }>;
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(resources.some((resource) => resource.id === 'utility-dive'));
+  assert.ok(resources.some((resource) => resource.id === 'canary-media'));
+  assert.ok(
+    resources.some((resource) => resource.id === 'energy-storage-news'),
+  );
+  assert.ok(resources.some((resource) => resource.id === 'cleantechnica'));
+  assert.ok(resources.some((resource) => resource.id === 'power-technology'));
+});
 
 test('getResourceArticles returns a parsed RSS document', async () => {
   const req = {

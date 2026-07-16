@@ -18,6 +18,32 @@ test('normalizeArticle returns null when required fields are missing', () => {
   assert.equal(normalizeArticle({ title: 'Missing link' }), null);
 });
 
+test('normalizeArticle keeps sparse feed items with a title preview fallback', () => {
+  const article = normalizeArticle({
+    title: 'Sparse but valid article',
+    link: 'https://example.com/sparse',
+    pubDate: 'Mon, 13 Jul 2026 10:00:00 GMT',
+  });
+
+  assert.deepEqual(article, {
+    title: 'Sparse but valid article',
+    link: 'https://example.com/sparse',
+    publishedAt: '2026-07-13T10:00:00.000Z',
+    body: 'Sparse but valid article',
+  });
+});
+
+test('normalizeArticle rejects items without valid article URLs', () => {
+  assert.equal(
+    normalizeArticle({
+      title: 'Invalid URL',
+      link: 'not a url',
+      pubDate: 'Mon, 13 Jul 2026 10:00:00 GMT',
+    }),
+    null,
+  );
+});
+
 test('filterRecentArticles keeps only items from the last 72 hours', () => {
   const now = new Date('2026-07-14T12:00:00.000Z');
   const articles = filterRecentArticles(

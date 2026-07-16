@@ -75,6 +75,29 @@ h1 {
   color: #9b2d2d;
 }
 
+.source-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.source-selector label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #294134;
+}
+
+.source-selector select {
+  min-width: 220px;
+  padding: 8px 10px;
+  border: 1px solid rgba(23, 49, 38, 0.2);
+  border-radius: 8px;
+  color: #173126;
+  background: #ffffff;
+}
+
 .article-list {
   display: grid;
   gap: 16px;
@@ -189,6 +212,12 @@ h1 {
   margin: 6px 0 0;
   color: #496255;
   line-height: 1.45;
+}
+
+.analysis-elapsed {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  color: #6a7d72;
 }
 
 .final-analysis {

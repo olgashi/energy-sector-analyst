@@ -7,9 +7,18 @@ export type ExtractedArticleText = {
   error?: string;
 };
 
+const DEFAULT_EXTRACTION_TIMEOUT_MS = 12000;
+
 export async function extractArticleTextFromUrl(
   url: string,
 ): Promise<ExtractedArticleText> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    Number(process.env.ARTICLE_EXTRACTION_TIMEOUT_MS) ||
+      DEFAULT_EXTRACTION_TIMEOUT_MS,
+  );
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -19,6 +28,7 @@ export async function extractArticleTextFromUrl(
           'EnergySectorAnalyst/0.1 article analysis',
       },
       redirect: 'follow',
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -45,6 +55,8 @@ export async function extractArticleTextFromUrl(
       status: 'failed',
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
