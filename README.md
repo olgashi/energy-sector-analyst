@@ -6,6 +6,8 @@ The app ingests recent articles from multiple energy news RSS feeds, persists an
 
 This project is designed as a practical AI product, not just a prompt demo. It focuses on usability, retrieval from stored data, structured outputs, caching, transparent progress, safe failure handling, and testable backend boundaries.
 
+![Energy Sector Analyst app screenshot](client/public/demo.png)
+
 ## What It Demonstrates
 
 - Full-stack TypeScript product development with React, Express, and PostgreSQL
