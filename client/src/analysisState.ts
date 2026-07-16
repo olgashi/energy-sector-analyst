@@ -3,7 +3,7 @@ import type {
   AnalysisUiState,
   WorkflowEvent,
   WorkflowStage,
-} from './types'
+} from './types';
 
 export function createInitialAnalysisState(): AnalysisUiState {
   return {
@@ -16,7 +16,7 @@ export function createInitialAnalysisState(): AnalysisUiState {
     analysis: null,
     error: null,
     startedAtMs: Date.now(),
-  }
+  };
 }
 
 export function applyWorkflowEvent(
@@ -26,16 +26,16 @@ export function applyWorkflowEvent(
   const nextCompletedStages =
     event.eventType === 'stage_completed'
       ? [...new Set([...state.completedStages, event.stage])]
-      : state.completedStages
-  const nextStageResults = { ...state.stageResults }
-  const completedResultKey = stageResultKey(event.stage)
+      : state.completedStages;
+  const nextStageResults = { ...state.stageResults };
+  const completedResultKey = stageResultKey(event.stage);
 
   if (event.eventType === 'stage_completed' && completedResultKey) {
-    nextStageResults[completedResultKey] = event.result
+    nextStageResults[completedResultKey] = event.result;
   }
 
   if (event.eventType === 'workflow_completed') {
-    const record = event.result as AnalysisRecord
+    const record = event.result as AnalysisRecord;
 
     return {
       ...state,
@@ -48,7 +48,7 @@ export function applyWorkflowEvent(
       analysis: record.result,
       error: null,
       startedAtMs: null,
-    }
+    };
   }
 
   if (event.eventType === 'workflow_failed' || event.eventType === 'stage_failed') {
@@ -61,7 +61,7 @@ export function applyWorkflowEvent(
       stageResults: nextStageResults,
       error: event.error ?? 'Analysis failed',
       startedAtMs: null,
-    }
+    };
   }
 
   return {
@@ -73,7 +73,7 @@ export function applyWorkflowEvent(
     events: [...state.events, event],
     stageResults: nextStageResults,
     startedAtMs: state.startedAtMs ?? Date.now(),
-  }
+  };
 }
 
 export function analysisRecordToUiState(record: AnalysisRecord): AnalysisUiState {
@@ -89,39 +89,39 @@ export function analysisRecordToUiState(record: AnalysisRecord): AnalysisUiState
     analysis: record.result,
     error: record.errorMessage,
     startedAtMs: null,
-  }
+  };
 }
 
 function stageFromResultKey(key: string): WorkflowStage | null {
   switch (key) {
     case 'researcher':
-      return 'researching'
+      return 'researching';
     case 'relatedArticleSearch':
-      return 'searching_related_articles'
+      return 'searching_related_articles';
     case 'technicalExplainer':
-      return 'technical_analysis'
+      return 'technical_analysis';
     case 'impactAnalyst':
-      return 'impact_analysis'
+      return 'impact_analysis';
     case 'synthesizer':
-      return 'synthesizing'
+      return 'synthesizing';
     default:
-      return null
+      return null;
   }
 }
 
 function stageResultKey(stage: WorkflowStage) {
   switch (stage) {
     case 'researching':
-      return 'researcher'
+      return 'researcher';
     case 'searching_related_articles':
-      return 'relatedArticleSearch'
+      return 'relatedArticleSearch';
     case 'technical_analysis':
-      return 'technicalExplainer'
+      return 'technicalExplainer';
     case 'impact_analysis':
-      return 'impactAnalyst'
+      return 'impactAnalyst';
     case 'synthesizing':
-      return 'synthesizer'
+      return 'synthesizer';
     default:
-      return null
+      return null;
   }
 }

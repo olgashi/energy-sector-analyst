@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import '@testing-library/jest-dom/vitest'
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import App from './App'
+import '@testing-library/jest-dom/vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import App from './App';
 
 const article = {
   id: 101,
@@ -11,7 +11,7 @@ const article = {
   url: 'https://example.com/grid-reliability',
   publishedAt: '2026-07-14T12:00:00.000Z',
   body: 'A utility proposed upgrades to improve local grid reliability.',
-}
+};
 
 const finalAnalysis = {
   overview: 'A utility is advancing a grid reliability plan.',
@@ -50,39 +50,39 @@ const finalAnalysis = {
   ],
   relatedArticles: [],
   contextLimitations: ['The article does not include project-level cost details.'],
-}
+};
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn(handleFetch))
-})
+  vi.stubGlobal('fetch', vi.fn(handleFetch));
+});
 
 afterEach(() => {
-  vi.unstubAllGlobals()
-})
+  vi.unstubAllGlobals();
+});
 
 test('loads articles, streams analysis, and renders final analysis', async () => {
-  const user = userEvent.setup()
+  const user = userEvent.setup();
 
-  render(<App />)
+  render(<App />);
 
-  expect(await screen.findByText(article.title)).toBeInTheDocument()
+  expect(await screen.findByText(article.title)).toBeInTheDocument();
 
-  await user.click(screen.getByRole('button', { name: /view analysis/i }))
-  await user.click(screen.getByRole('button', { name: /analyze article/i }))
+  await user.click(screen.getByRole('button', { name: /view analysis/i }));
+  await user.click(screen.getByRole('button', { name: /analyze article/i }));
 
   expect(
     await screen.findByText('The utility announced a proposed grid upgrade program. (article)'),
-  ).toBeInTheDocument()
-  expect(screen.getByText('Customers (medium)')).toBeInTheDocument()
-  expect(screen.getByText('No related stored articles found.')).toBeInTheDocument()
-})
+  ).toBeInTheDocument();
+  expect(screen.getByText('Customers (medium)')).toBeInTheDocument();
+  expect(screen.getByText('No related stored articles found.')).toBeInTheDocument();
+});
 
 async function handleFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  const url = String(input)
-  const method = init?.method ?? 'GET'
+  const url = String(input);
+  const method = init?.method ?? 'GET';
 
   if (url.endsWith('/api/resources')) {
     return jsonResponse([
@@ -91,18 +91,18 @@ async function handleFetch(
         name: 'Utility Dive',
         type: 'rss',
       },
-    ])
+    ]);
   }
 
   if (url.endsWith('/api/resources/utility-dive/articles')) {
     return jsonResponse({
       resourceName: 'Utility Dive',
       articles: [article],
-    })
+    });
   }
 
   if (url.endsWith('/api/articles/101/analysis') && method === 'GET') {
-    return jsonResponse({ error: 'Analysis not found' }, 404)
+    return jsonResponse({ error: 'Analysis not found' }, 404);
   }
 
   if (url.endsWith('/api/articles/101/analysis') && method === 'POST') {
@@ -133,10 +133,10 @@ async function handleFetch(
           updatedAt: '2026-07-14T12:00:01.000Z',
         },
       },
-    ])
+    ]);
   }
 
-  return jsonResponse({ error: `Unhandled request: ${method} ${url}` }, 500)
+  return jsonResponse({ error: `Unhandled request: ${method} ${url}` }, 500);
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -145,11 +145,11 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: {
       'Content-Type': 'application/json',
     },
-  })
+  });
 }
 
 function sseResponse(events: unknown[]): Response {
-  const encoder = new TextEncoder()
+  const encoder = new TextEncoder();
 
   return new Response(
     new ReadableStream<Uint8Array>({
@@ -159,10 +159,10 @@ function sseResponse(events: unknown[]): Response {
             encoder.encode(
               `event: ${(event as { eventType: string }).eventType}\ndata: ${JSON.stringify(event)}\n\n`,
             ),
-          )
+          );
         }
 
-        controller.close()
+        controller.close();
       },
     }),
     {
@@ -171,5 +171,5 @@ function sseResponse(events: unknown[]): Response {
         'Content-Type': 'text/event-stream; charset=utf-8',
       },
     },
-  )
+  );
 }

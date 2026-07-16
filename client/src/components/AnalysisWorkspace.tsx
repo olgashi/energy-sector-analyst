@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 import type {
   AnalysisUiState,
   Article,
   FinalAnalysis,
   TechnicalConcept,
   WorkflowStage,
-} from '../types'
-import { formatDate } from '../format'
+} from '../types';
+import { formatDate } from '../format';
 
 const activityMessages = [
   'Reading the article and identifying the central event...',
@@ -16,7 +16,7 @@ const activityMessages = [
   'Assessing who may be affected...',
   'Verifying uncertainty and confidence levels...',
   'Preparing the final analysis...',
-]
+];
 
 export function AnalysisWorkspace({
   article,
@@ -38,7 +38,7 @@ export function AnalysisWorkspace({
           </p>
         </div>
       </aside>
-    )
+    );
   }
 
   return (
@@ -85,33 +85,33 @@ export function AnalysisWorkspace({
         </div>
       )}
     </aside>
-  )
+  );
 }
 
 function AnalysisPanel({ state }: { state: AnalysisUiState }) {
-  const currentStageLabel = state.currentStage ? stageLabel(state.currentStage) : 'Pending'
-  const [nowMs, setNowMs] = useState(() => Date.now())
+  const currentStageLabel = state.currentStage ? stageLabel(state.currentStage) : 'Pending';
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (state.status !== 'running') {
-      return
+      return;
     }
 
     const intervalId = window.setInterval(() => {
-      setNowMs(Date.now())
-    }, 1000)
+      setNowMs(Date.now());
+    }, 1000);
 
-    return () => window.clearInterval(intervalId)
-  }, [state.status])
+    return () => window.clearInterval(intervalId);
+  }, [state.status]);
 
   const elapsedSeconds =
     state.status === 'running' && state.startedAtMs
       ? Math.max(0, Math.floor((nowMs - state.startedAtMs) / 1000))
-      : 0
+      : 0;
   const activityIndex =
     elapsedSeconds === 0
       ? 0
-      : Math.floor(elapsedSeconds / 3) % activityMessages.length
+      : Math.floor(elapsedSeconds / 3) % activityMessages.length;
 
   return (
     <section className="analysis-panel">
@@ -141,12 +141,12 @@ function AnalysisPanel({ state }: { state: AnalysisUiState }) {
 
       {state.analysis ? <FinalAnalysisView analysis={state.analysis} /> : null}
     </section>
-  )
+  );
 }
 
 function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
-  const [activeConcept, setActiveConcept] = useState<TechnicalConcept | null>(null)
-  const conceptMatches = buildConceptMatches(analysis.technicalConcepts)
+  const [activeConcept, setActiveConcept] = useState<TechnicalConcept | null>(null);
+  const conceptMatches = buildConceptMatches(analysis.technicalConcepts);
 
   return (
     <div className="final-analysis">
@@ -226,7 +226,7 @@ function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
       </section>
       <AnalysisList title="Context limitations" items={analysis.contextLimitations} />
     </div>
-  )
+  );
 }
 
 type ConceptMatch = {
@@ -235,7 +235,7 @@ type ConceptMatch = {
 }
 
 function buildConceptMatches(concepts: TechnicalConcept[]): ConceptMatch[] {
-  const seen = new Set<string>()
+  const seen = new Set<string>();
 
   return concepts
     .map((concept) => ({
@@ -244,17 +244,17 @@ function buildConceptMatches(concepts: TechnicalConcept[]): ConceptMatch[] {
     }))
     .filter((entry) => {
       if (entry.normalizedTerm.length < 4 || seen.has(entry.normalizedTerm)) {
-        return false
+        return false;
       }
 
-      seen.add(entry.normalizedTerm)
-      return true
+      seen.add(entry.normalizedTerm);
+      return true;
     })
-    .sort((left, right) => right.normalizedTerm.length - left.normalizedTerm.length)
+    .sort((left, right) => right.normalizedTerm.length - left.normalizedTerm.length);
 }
 
 function normalizeConceptTerm(term: string) {
-  return term.trim().toLowerCase().replace(/\s+/g, ' ')
+  return term.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 function AnalysisList({
@@ -287,7 +287,7 @@ function AnalysisList({
         <p>None provided.</p>
       )}
     </section>
-  )
+  );
 }
 
 function HighlightedText({
@@ -300,50 +300,50 @@ function HighlightedText({
   onExplainConcept: (concept: TechnicalConcept) => void
 }) {
   if (conceptMatches.length === 0) {
-    return <>{text}</>
+    return <>{text}</>;
   }
 
-  const lowerText = text.toLowerCase()
-  const ranges: Array<{ start: number; end: number; concept: TechnicalConcept }> = []
+  const lowerText = text.toLowerCase();
+  const ranges: Array<{ start: number; end: number; concept: TechnicalConcept }> = [];
 
   for (const match of conceptMatches) {
-    let searchFrom = 0
+    let searchFrom = 0;
 
     while (searchFrom < text.length) {
-      const index = lowerText.indexOf(match.normalizedTerm, searchFrom)
+      const index = lowerText.indexOf(match.normalizedTerm, searchFrom);
 
       if (index === -1) {
-        break
+        break;
       }
 
-      const end = index + match.normalizedTerm.length
+      const end = index + match.normalizedTerm.length;
 
       if (isWordBoundary(text, index - 1) && isWordBoundary(text, end)) {
         const overlaps = ranges.some(
           (range) => index < range.end && end > range.start,
-        )
+        );
 
         if (!overlaps) {
-          ranges.push({ start: index, end, concept: match.concept })
+          ranges.push({ start: index, end, concept: match.concept });
         }
       }
 
-      searchFrom = end
+      searchFrom = end;
     }
   }
 
   if (ranges.length === 0) {
-    return <>{text}</>
+    return <>{text}</>;
   }
 
-  ranges.sort((left, right) => left.start - right.start)
+  ranges.sort((left, right) => left.start - right.start);
 
-  const parts = []
-  let cursor = 0
+  const parts = [];
+  let cursor = 0;
 
   for (const range of ranges) {
     if (range.start > cursor) {
-      parts.push(text.slice(cursor, range.start))
+      parts.push(text.slice(cursor, range.start));
     }
 
     parts.push(
@@ -356,44 +356,44 @@ function HighlightedText({
       >
         {text.slice(range.start, range.end)}
       </button>,
-    )
-    cursor = range.end
+    );
+    cursor = range.end;
   }
 
   if (cursor < text.length) {
-    parts.push(text.slice(cursor))
+    parts.push(text.slice(cursor));
   }
 
-  return <>{parts}</>
+  return <>{parts}</>;
 }
 
 function stageLabel(stage: WorkflowStage) {
   switch (stage) {
     case 'loading_article':
-      return 'Loading article'
+      return 'Loading article';
     case 'researching':
-      return 'Researching article'
+      return 'Researching article';
     case 'searching_related_articles':
-      return 'Searching stored articles'
+      return 'Searching stored articles';
     case 'technical_analysis':
-      return 'Explaining key concepts'
+      return 'Explaining key concepts';
     case 'impact_analysis':
-      return 'Assessing stakeholder impact'
+      return 'Assessing stakeholder impact';
     case 'synthesizing':
-      return 'Synthesizing final analysis'
+      return 'Synthesizing final analysis';
     case 'saving':
-      return 'Saving result'
+      return 'Saving result';
     case 'completed':
-      return 'Completed'
+      return 'Completed';
     case 'failed':
-      return 'Failed'
+      return 'Failed';
   }
 }
 
 function isWordBoundary(text: string, index: number) {
   if (index < 0 || index >= text.length) {
-    return true
+    return true;
   }
 
-  return !/[a-z0-9]/i.test(text[index])
+  return !/[a-z0-9]/i.test(text[index]);
 }
