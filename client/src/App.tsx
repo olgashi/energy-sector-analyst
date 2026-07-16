@@ -385,11 +385,16 @@ function App() {
   return (
     <main className="app-shell">
       <section className="app-panel">
-        <p className="eyebrow">Energy Sector Analyst</p>
-        <h1>Recent utility news</h1>
-        <p className="intro">
-          Articles from the last 72 hours for {document?.resourceName ?? 'the selected source'}.
-        </p>
+        <header className="app-header">
+          <img className="app-logo" src="/logo.png" alt="" aria-hidden="true" />
+          <div>
+            <p className="eyebrow">Energy Sector Analyst</p>
+            <h1>Recent utility news</h1>
+            <p className="intro">
+              Articles from the last 72 hours for {document?.resourceName ?? 'the selected source'}.
+            </p>
+          </div>
+        </header>
 
         {resources.length > 0 ? (
           <div className="source-selector">

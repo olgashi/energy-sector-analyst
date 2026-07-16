@@ -45,6 +45,20 @@ select {
   box-shadow: 0 18px 45px rgba(23, 49, 38, 0.08);
 }
 
+.app-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.app-logo {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(23, 49, 38, 0.12);
+}
+
 .eyebrow {
   margin: 0 0 8px;
   font-size: 0.78rem;
@@ -426,6 +440,16 @@ h1 {
 
   .app-panel {
     padding: 20px;
+  }
+
+  .app-header {
+    align-items: flex-start;
+  }
+
+  .app-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
   }
 
   .analysis-layout {
