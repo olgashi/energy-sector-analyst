@@ -87,29 +87,6 @@ h1 {
   color: #ff9b9b;
 }
 
-.source-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  align-items: center;
-  margin-top: 20px;
-}
-
-.source-selector label {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #dce6df;
-}
-
-.source-selector select {
-  min-width: 220px;
-  padding: 8px 10px;
-  border: 1px solid rgba(153, 184, 166, 0.22);
-  border-radius: 8px;
-  color: #e7ede8;
-  background: #101612;
-}
-
 .article-list {
   display: grid;
   gap: 16px;

@@ -6,6 +6,7 @@ type Article = {
   url: string
   publishedAt: string
   body: string
+  source?: string
 }
 
 type FeedDocument = {
@@ -147,14 +148,12 @@ function createInitialAnalysisState(): AnalysisUiState {
 
 function App() {
   const [resources, setResources] = useState<ResourceSummary[]>([])
-  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null)
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null)
   const [document, setDocument] = useState<FeedDocument | null>(null)
   const [loadingResources, setLoadingResources] = useState(true)
-  const [loadingArticles, setLoadingArticles] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analysisByArticle, setAnalysisByArticle] = useState<Record<number, AnalysisUiState>>({})
-  const loading = loadingResources || loadingArticles
+  const loading = loadingResources
   const selectedArticle =
     document?.articles.find((article) => article.id === selectedArticleId) ?? null
 
@@ -223,10 +222,12 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
-    async function loadResources() {
+    async function loadArticlesFromAllSources() {
       try {
         setLoadingResources(true)
         setError(null)
+        setDocument(null)
+        setSelectedArticleId(null)
 
         const response = await fetch(`${apiBaseUrl}/resources`)
         console.info('[article-analysis] resources response', {
@@ -243,22 +244,68 @@ function App() {
           resourceCount: data.length,
         })
 
-        if (!cancelled) {
-          setResources(data)
-          setSelectedResourceId((current) => {
-            if (current && data.some((resource) => resource.id === current)) {
-              return current
+        const documentResults = await Promise.allSettled(
+          data.map(async (resource) => {
+            const articlesResponse = await fetch(`${apiBaseUrl}/resources/${resource.id}/articles`)
+            console.info('[article-analysis] resource articles response', {
+              resourceId: resource.id,
+              status: articlesResponse.status,
+              ok: articlesResponse.ok,
+            })
+
+            if (!articlesResponse.ok) {
+              throw new Error(`Failed to load articles from ${resource.name}`)
             }
 
-            return (
-              data.find((resource) => resource.id === 'utility-dive')?.id ??
-              data[0]?.id ??
-              null
-            )
+            return (await articlesResponse.json()) as FeedDocument
+          }),
+        )
+        const documents = documentResults.flatMap((result, index) => {
+          if (result.status === 'fulfilled') {
+            return [result.value]
+          }
+
+          console.warn('[article-analysis] source articles skipped', {
+            resourceId: data[index]?.id,
+            resourceName: data[index]?.name,
+            error: result.reason,
           })
+
+          return []
+        })
+
+        if (data.length > 0 && documents.length === 0) {
+          throw new Error('Failed to load articles')
+        }
+
+        const articles = documents
+          .flatMap((sourceDocument) =>
+            sourceDocument.articles.map((article) => ({
+              ...article,
+              source: sourceDocument.resourceName,
+            })),
+          )
+          .sort(
+            (left, right) =>
+              new Date(right.publishedAt).getTime() -
+              new Date(left.publishedAt).getTime(),
+          )
+
+        console.info('[article-analysis] all source articles loaded', {
+          articleCount: articles.length,
+          resourceCount: data.length,
+        })
+
+        if (!cancelled) {
+          setResources(data)
+          setDocument({
+            resourceName: `${data.length} sources`,
+            articles,
+          })
+          void loadStoredAnalyses(articles, () => cancelled)
         }
       } catch (resourceError) {
-        console.error('[article-analysis] resource load failed', {
+        console.error('[article-analysis] all source article load failed', {
           error: resourceError,
         })
         if (!cancelled) {
@@ -271,69 +318,12 @@ function App() {
       }
     }
 
-    void loadResources()
+    void loadArticlesFromAllSources()
 
     return () => {
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    if (!selectedResourceId) {
-      return
-    }
-
-    let cancelled = false
-
-    async function loadArticles() {
-      try {
-        setLoadingArticles(true)
-        setError(null)
-        setDocument(null)
-        setSelectedArticleId(null)
-
-        const response = await fetch(`${apiBaseUrl}/resources/${selectedResourceId}/articles`)
-        console.info('[article-analysis] resource articles response', {
-          resourceId: selectedResourceId,
-          status: response.status,
-          ok: response.ok,
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to load articles')
-        }
-
-        const data: FeedDocument = await response.json()
-        console.info('[article-analysis] articles loaded', {
-          articleCount: data.articles.length,
-          resourceName: data.resourceName,
-        })
-
-        if (!cancelled) {
-          setDocument(data)
-          void loadStoredAnalyses(data.articles, () => cancelled)
-        }
-      } catch (loadError) {
-        console.error('[article-analysis] article load failed', {
-          resourceId: selectedResourceId,
-          error: loadError,
-        })
-        if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : 'Unknown error')
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingArticles(false)
-        }
-      }
-    }
-
-    void loadArticles()
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedResourceId])
 
   async function loadStoredAnalyses(
     articles: Article[],
@@ -391,28 +381,10 @@ function App() {
             <p className="eyebrow">Energy Sector Analyst</p>
             <h1>Recent utility news</h1>
             <p className="intro">
-              Articles from the last 72 hours for {document?.resourceName ?? 'the selected source'}.
+              Articles from the last 72 hours across {resources.length || 'configured'} sources.
             </p>
           </div>
         </header>
-
-        {resources.length > 0 ? (
-          <div className="source-selector">
-            <label htmlFor="source-select">News source</label>
-            <select
-              id="source-select"
-              value={selectedResourceId ?? ''}
-              onChange={(event) => setSelectedResourceId(event.target.value)}
-              disabled={loadingArticles}
-            >
-              {resources.map((resource) => (
-                <option key={resource.id} value={resource.id}>
-                  {resource.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
 
         {loading ? <p className="status">Loading articles...</p> : null}
         {error ? <p className="status error">{error}</p> : null}
@@ -446,7 +418,10 @@ function App() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="article-date">{formatDate(article.publishedAt)}</p>
+                      <p className="article-date">
+                        {article.source ? `${article.source} · ` : ''}
+                        {formatDate(article.publishedAt)}
+                      </p>
                       <p className="article-preview">{toPreview(article.body)}</p>
                       <button
                         className="select-article-button"
@@ -502,7 +477,10 @@ function AnalysisWorkspace({
       <div className="analysis-workspace-header">
         <p className="eyebrow">Selected article</p>
         <h2>{article.title}</h2>
-        <p className="article-date">{formatDate(article.publishedAt)}</p>
+        <p className="article-date">
+          {article.source ? `${article.source} · ` : ''}
+          {formatDate(article.publishedAt)}
+        </p>
         <a className="source-link" href={article.url} target="_blank" rel="noreferrer">
           Open original article
         </a>
