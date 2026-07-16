@@ -1,4 +1,6 @@
 import type {
+  AiAnalysisMetadata,
+  AiGenerationMetadata,
   Confidence,
   FinalAnalysis,
   ImpactAnalystOutput,
@@ -131,7 +133,7 @@ export function validateFinalAnalysis(value: unknown): FinalAnalysis {
   const uncertainties = requireArray(record.uncertainties, 'uncertainties');
   const relatedArticles = requireArray(record.relatedArticles, 'relatedArticles');
 
-  return {
+  const analysis: FinalAnalysis = {
     articleId: requireNumber(record.articleId, 'articleId'),
     analysisVersion: requireString(record.analysisVersion, 'analysisVersion'),
     overview: requireString(record.overview, 'overview'),
@@ -194,6 +196,50 @@ export function validateFinalAnalysis(value: unknown): FinalAnalysis {
       'contextLimitations',
     ),
     generatedAt: requireString(record.generatedAt, 'generatedAt'),
+  };
+
+  if (record.aiMetadata !== undefined) {
+    analysis.aiMetadata = validateAiAnalysisMetadata(record.aiMetadata);
+  }
+
+  return analysis;
+}
+
+export function validateAiAnalysisMetadata(value: unknown): AiAnalysisMetadata {
+  const record = requireRecord(value, 'aiMetadata');
+  const generations = requireArray(record.generations, 'aiMetadata.generations');
+
+  return {
+    promptVersion: requireString(record.promptVersion, 'aiMetadata.promptVersion'),
+    promptVersionHash: requireString(
+      record.promptVersionHash,
+      'aiMetadata.promptVersionHash',
+    ),
+    generations: generations.map((entry, index) =>
+      validateAiGenerationMetadata(
+        entry,
+        `aiMetadata.generations[${index}]`,
+      ),
+    ),
+  };
+}
+
+function validateAiGenerationMetadata(
+  value: unknown,
+  fieldName: string,
+): AiGenerationMetadata {
+  const record = requireRecord(value, fieldName);
+
+  return {
+    schemaName: requireString(record.schemaName, `${fieldName}.schemaName`),
+    model: requireString(record.model, `${fieldName}.model`),
+    responseId: requireOptionalStringOrNull(
+      record.responseId,
+      `${fieldName}.responseId`,
+    ),
+    promptHash: requireString(record.promptHash, `${fieldName}.promptHash`),
+    promptLength: requireNumber(record.promptLength, `${fieldName}.promptLength`),
+    generatedAt: requireString(record.generatedAt, `${fieldName}.generatedAt`),
   };
 }
 

@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import OpenAI from 'openai';
 import { UserSafeError } from './errors.js';
+import type { AiGenerationMetadata } from './types.js';
 
 export const defaultOpenAiModel = 'gpt-5-mini';
 
@@ -10,7 +12,14 @@ export type GenerateJsonInput = {
   schema: Record<string, unknown>;
 };
 
-export type GenerateJson = (input: GenerateJsonInput) => Promise<unknown>;
+export type GeneratedJsonResult = {
+  data: unknown;
+  metadata: AiGenerationMetadata;
+};
+
+export type GenerateJson = (
+  input: GenerateJsonInput,
+) => Promise<GeneratedJsonResult>;
 
 export function getConfiguredOpenAiModel(): string {
   return process.env.OPENAI_MODEL || defaultOpenAiModel;
@@ -66,7 +75,17 @@ export function createOpenAiJsonGenerator(): GenerateJson {
         outputTextLength: response.output_text.length,
       });
 
-      return JSON.parse(response.output_text);
+      return {
+        data: JSON.parse(response.output_text),
+        metadata: {
+          schemaName,
+          model,
+          responseId: response.id,
+          promptHash: hashPrompt(system, prompt),
+          promptLength: prompt.length,
+          generatedAt: new Date().toISOString(),
+        },
+      };
     } catch (error) {
       console.error('OpenAI JSON generation failed', {
         model,
@@ -76,6 +95,14 @@ export function createOpenAiJsonGenerator(): GenerateJson {
       throw error;
     }
   };
+}
+
+export function hashPrompt(system: string, prompt: string): string {
+  return createHash('sha256')
+    .update(system)
+    .update('\n\n')
+    .update(prompt)
+    .digest('hex');
 }
 
 function toDiagnosticError(error: unknown) {

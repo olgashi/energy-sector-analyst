@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import {
   getArticleById,
@@ -26,6 +26,7 @@ import {
 import { NotFoundError, UserSafeError, toSafeErrorMessage } from './errors.js';
 import type {
   AnalysisWorkflowState,
+  AiGenerationMetadata,
   FinalAnalysis,
   ImpactAnalystOutput,
   RelatedArticleSearchOutput,
@@ -41,6 +42,7 @@ import {
 
 const minimumArticleContentLength = 120;
 const relatedArticleLimit = 5;
+const analysisPromptVersion = 'analysis-workflow-v1';
 
 const StateAnnotation = Annotation.Root({
   articleId: Annotation<number>,
@@ -90,6 +92,7 @@ export async function runAnalysisWorkflow(
   const saveConcepts = deps.saveConcepts ?? upsertTechnicalConcepts;
   const extractArticleText = deps.extractArticleText ?? extractArticleTextFromUrl;
   const generateJson = deps.generateJson ?? createOpenAiJsonGenerator();
+  const generations: AiGenerationMetadata[] = [];
 
   await emit({
     eventType: 'workflow_started',
@@ -141,18 +144,20 @@ export async function runAnalysisWorkflow(
     .addNode('research', async (state: AnalysisWorkflowState) =>
       withStage('researching', emit, async () => {
         const article = requireStateValue(state.article, 'article');
+        const generated = await generateJson({
+          schemaName: 'researcher_output',
+          schema: researcherSchema,
+          system:
+            'You are the researcher agent for an energy-sector article analysis workflow. Return only structured JSON matching the schema. Do not include hidden reasoning.',
+          prompt: [
+            'Identify the central event, entities, terms, background questions, and context limitations.',
+            'Do not invent current facts. If the article lacks context, say so in contextLimitations.',
+            formatArticleForPrompt(article),
+          ].join('\n\n'),
+        });
+        generations.push(generated.metadata);
         const researcher = validateResearcherOutput(
-          await generateJson({
-            schemaName: 'researcher_output',
-            schema: researcherSchema,
-            system:
-              'You are the researcher agent for an energy-sector article analysis workflow. Return only structured JSON matching the schema. Do not include hidden reasoning.',
-            prompt: [
-              'Identify the central event, entities, terms, background questions, and context limitations.',
-              'Do not invent current facts. If the article lacks context, say so in contextLimitations.',
-              formatArticleForPrompt(article),
-            ].join('\n\n'),
-          }),
+          generated.data,
         );
 
         return { researcher };
@@ -191,25 +196,27 @@ export async function runAnalysisWorkflow(
           requestedTerms: researcher.keyTerms.length,
           cacheHits: cachedTechnicalConcepts.length,
         });
+        const generated = await generateJson({
+          schemaName: 'technical_explainer_output',
+          schema: technicalExplainerSchema,
+          system:
+            'You are the technical explainer agent. Explain stable energy industry, technical, regulatory, or market concepts. Return only structured JSON.',
+          prompt: [
+            'Explain important concepts needed to understand this article.',
+            'Keep each explanation concise: target 2-4 sentences and no more than 120 words.',
+            'Keep each relevance field to 1 sentence focused on this article.',
+            'Use stable model knowledge only for general explanations.',
+            'Cached concept definitions, when supplied, are reusable background. Reuse their substance and avoid unnecessary redefinition, but still write article-specific relevance.',
+            'Do not invent current laws, decisions, company actions, dates, or numerical claims.',
+            formatArticleForPrompt(article),
+            `Research notes:\n${JSON.stringify(researcher)}`,
+            `Related articles:\n${JSON.stringify(summarizeRelatedArticles(relatedArticleSearch.articles))}`,
+            `Cached concept definitions:\n${JSON.stringify(cachedTechnicalConcepts)}`,
+          ].join('\n\n'),
+        });
+        generations.push(generated.metadata);
         const technicalExplainer = validateTechnicalExplainerOutput(
-          await generateJson({
-            schemaName: 'technical_explainer_output',
-            schema: technicalExplainerSchema,
-            system:
-              'You are the technical explainer agent. Explain stable energy industry, technical, regulatory, or market concepts. Return only structured JSON.',
-            prompt: [
-              'Explain important concepts needed to understand this article.',
-              'Keep each explanation concise: target 2-4 sentences and no more than 120 words.',
-              'Keep each relevance field to 1 sentence focused on this article.',
-              'Use stable model knowledge only for general explanations.',
-              'Cached concept definitions, when supplied, are reusable background. Reuse their substance and avoid unnecessary redefinition, but still write article-specific relevance.',
-              'Do not invent current laws, decisions, company actions, dates, or numerical claims.',
-              formatArticleForPrompt(article),
-              `Research notes:\n${JSON.stringify(researcher)}`,
-              `Related articles:\n${JSON.stringify(summarizeRelatedArticles(relatedArticleSearch.articles))}`,
-              `Cached concept definitions:\n${JSON.stringify(cachedTechnicalConcepts)}`,
-            ].join('\n\n'),
-          }),
+          generated.data,
         );
         await saveConcepts(
           technicalExplainer.technicalConcepts.map((concept) => ({
@@ -233,21 +240,23 @@ export async function runAnalysisWorkflow(
           state.relatedArticleSearch,
           'relatedArticleSearch',
         );
+        const generated = await generateJson({
+          schemaName: 'impact_analyst_output',
+          schema: impactAnalystSchema,
+          system:
+            'You are the impact analyst agent. Distinguish article-supported facts from interpretation and attach confidence to interpretations. Return only structured JSON.',
+          prompt: [
+            'Explain likely prompts, stakeholders, direct consequences, and uncertainties.',
+            'Keep interpretive claims qualified and assign high, medium, or low confidence.',
+            'Do not invent facts beyond the article and related stored articles.',
+            formatArticleForPrompt(article),
+            `Research notes:\n${JSON.stringify(researcher)}`,
+            `Related articles:\n${JSON.stringify(summarizeRelatedArticles(relatedArticleSearch.articles))}`,
+          ].join('\n\n'),
+        });
+        generations.push(generated.metadata);
         const impactAnalyst = validateImpactAnalystOutput(
-          await generateJson({
-            schemaName: 'impact_analyst_output',
-            schema: impactAnalystSchema,
-            system:
-              'You are the impact analyst agent. Distinguish article-supported facts from interpretation and attach confidence to interpretations. Return only structured JSON.',
-            prompt: [
-              'Explain likely prompts, stakeholders, direct consequences, and uncertainties.',
-              'Keep interpretive claims qualified and assign high, medium, or low confidence.',
-              'Do not invent facts beyond the article and related stored articles.',
-              formatArticleForPrompt(article),
-              `Research notes:\n${JSON.stringify(researcher)}`,
-              `Related articles:\n${JSON.stringify(summarizeRelatedArticles(relatedArticleSearch.articles))}`,
-            ].join('\n\n'),
-          }),
+          generated.data,
         );
 
         return { impactAnalyst };
@@ -269,33 +278,33 @@ export async function runAnalysisWorkflow(
           state.impactAnalyst,
           'impactAnalyst',
         );
-        const rawAnalysis = validateFinalAnalysis(
-          await generateJson({
-            schemaName: 'final_article_analysis',
-            schema: finalAnalysisSchema,
-            system:
-              'You are the synthesizer and verifier. Combine prior structured outputs, remove unsupported claims, preserve uncertainty, and return only structured JSON.',
-            prompt: [
-              'Produce the final article analysis.',
-              'Keep the final analysis concise without dropping essential context.',
-              'Overview: exactly 1 short sentence for schema compatibility. It must not repeat specific details that belong in whatHappened.',
-              'What happened: 3-5 short items maximum.',
-              'Background: 4 short items maximum, only context that directly changes interpretation.',
-              'Technical concept explanations should stay concise because the UI can expand them.',
-              'Stakeholder impacts: prioritize the most material stakeholders and keep reasoning direct.',
-              'Separate article facts, related article facts, model background, and agent interpretation using sourceType.',
-              'Do not introduce major new claims.',
-              'Use the articleId and analysisVersion supplied here.',
-              formatArticleForPrompt(article),
-              `articleId: ${state.articleId}`,
-              `analysisVersion: ${state.analysisVersion}`,
-              `Researcher:\n${JSON.stringify(researcher)}`,
-              `Related search:\n${JSON.stringify(summarizeRelatedArticles(relatedArticleSearch.articles))}`,
-              `Technical explainer:\n${JSON.stringify(technicalExplainer)}`,
-              `Impact analyst:\n${JSON.stringify(impactAnalyst)}`,
-            ].join('\n\n'),
-          }),
-        );
+        const generated = await generateJson({
+          schemaName: 'final_article_analysis',
+          schema: finalAnalysisSchema,
+          system:
+            'You are the synthesizer and verifier. Combine prior structured outputs, remove unsupported claims, preserve uncertainty, and return only structured JSON.',
+          prompt: [
+            'Produce the final article analysis.',
+            'Keep the final analysis concise without dropping essential context.',
+            'Overview: exactly 1 short sentence for schema compatibility. It must not repeat specific details that belong in whatHappened.',
+            'What happened: 3-5 short items maximum.',
+            'Background: 4 short items maximum, only context that directly changes interpretation.',
+            'Technical concept explanations should stay concise because the UI can expand them.',
+            'Stakeholder impacts: prioritize the most material stakeholders and keep reasoning direct.',
+            'Separate article facts, related article facts, model background, and agent interpretation using sourceType.',
+            'Do not introduce major new claims.',
+            'Use the articleId and analysisVersion supplied here.',
+            formatArticleForPrompt(article),
+            `articleId: ${state.articleId}`,
+            `analysisVersion: ${state.analysisVersion}`,
+            `Researcher:\n${JSON.stringify(researcher)}`,
+            `Related search:\n${JSON.stringify(summarizeRelatedArticles(relatedArticleSearch.articles))}`,
+            `Technical explainer:\n${JSON.stringify(technicalExplainer)}`,
+            `Impact analyst:\n${JSON.stringify(impactAnalyst)}`,
+          ].join('\n\n'),
+        });
+        generations.push(generated.metadata);
+        const rawAnalysis = validateFinalAnalysis(generated.data);
         const finalAnalysis: FinalAnalysis = {
           ...rawAnalysis,
           articleId: state.articleId,
@@ -313,6 +322,11 @@ export async function runAnalysisWorkflow(
             ]),
           ],
           generatedAt: now().toISOString(),
+          aiMetadata: {
+            promptVersion: analysisPromptVersion,
+            promptVersionHash: hashText(analysisPromptVersion),
+            generations: [...generations],
+          },
         };
 
         return { finalAnalysis: validateFinalAnalysis(finalAnalysis) };
@@ -350,7 +364,7 @@ async function withStage<T extends Partial<AnalysisWorkflowState>>(
     await emit({
       eventType: 'stage_completed',
       stage,
-      result: extractStageResult(result),
+      result: extractStageResult(stage, result),
     });
 
     return result;
@@ -364,9 +378,22 @@ async function withStage<T extends Partial<AnalysisWorkflowState>>(
   }
 }
 
-function extractStageResult(result: Partial<AnalysisWorkflowState>): unknown {
+function extractStageResult(
+  stage: WorkflowStage,
+  result: Partial<AnalysisWorkflowState>,
+): unknown {
+  if (stage === 'loading_article' && result.article) {
+    return {
+      id: result.article.id,
+      url: result.article.url,
+      title: result.article.title,
+      publishedAt: result.article.publishedAt,
+      source: result.article.source,
+      contentLength: result.article.body.length,
+    };
+  }
+
   return (
-    result.article ??
     result.researcher ??
     result.relatedArticleSearch ??
     result.technicalExplainer ??
@@ -374,6 +401,10 @@ function extractStageResult(result: Partial<AnalysisWorkflowState>): unknown {
     result.finalAnalysis ??
     result
   );
+}
+
+function hashText(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
 }
 
 function requireStateValue<T>(value: T | undefined, name: string): T {

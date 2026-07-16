@@ -80,6 +80,21 @@ export type ImpactAnalystOutput = {
   uncertainties: string[];
 };
 
+export type AiGenerationMetadata = {
+  schemaName: string;
+  model: string;
+  responseId: string | null;
+  promptHash: string;
+  promptLength: number;
+  generatedAt: string;
+};
+
+export type AiAnalysisMetadata = {
+  promptVersion: string;
+  promptVersionHash: string;
+  generations: AiGenerationMetadata[];
+};
+
 export type FinalAnalysis = {
   articleId: number;
   analysisVersion: string;
@@ -106,6 +121,7 @@ export type FinalAnalysis = {
   }>;
   contextLimitations: string[];
   generatedAt: string;
+  aiMetadata?: AiAnalysisMetadata;
 };
 
 export type StageResults = {
