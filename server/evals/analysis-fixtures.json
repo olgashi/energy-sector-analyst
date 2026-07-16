@@ -1,0 +1,208 @@
+[
+  {
+    "name": "utility-grid-upgrade",
+    "allowedRelatedArticleIds": [201, 202],
+    "analysis": {
+      "articleId": 101,
+      "analysisVersion": "v1",
+      "overview": "A utility is planning grid investments to improve reliability.",
+      "whatHappened": [
+        {
+          "statement": "The utility announced a proposed grid upgrade program.",
+          "sourceType": "article"
+        },
+        {
+          "statement": "A prior stored article described similar reliability-driven investment plans.",
+          "sourceType": "related_article"
+        }
+      ],
+      "background": [
+        {
+          "statement": "Distribution grid upgrades can reduce outage risk and support new load growth.",
+          "sourceType": "model_background"
+        }
+      ],
+      "technicalConcepts": [
+        {
+          "term": "Distribution grid",
+          "explanation": "The distribution grid carries electricity from substations to homes and businesses.",
+          "relevance": "The article focuses on local reliability investments."
+        }
+      ],
+      "stakeholderImpacts": [
+        {
+          "stakeholder": "Customers",
+          "impact": "Reliability may improve if the projects are approved and executed.",
+          "reasoning": "Targeted grid investments can reduce equipment-related outages.",
+          "confidence": "medium"
+        }
+      ],
+      "uncertainties": [
+        {
+          "issue": "Regulatory approval",
+          "explanation": "The article does not say whether regulators have approved cost recovery."
+        }
+      ],
+      "relatedArticles": [
+        {
+          "articleId": 201,
+          "title": "Utilities propose reliability spending",
+          "url": "https://example.com/reliability-spending",
+          "publishedAt": "2026-07-12T10:00:00.000Z"
+        }
+      ],
+      "contextLimitations": ["The article does not include project-level cost recovery details."],
+      "generatedAt": "2026-07-14T12:00:00.000Z",
+      "aiMetadata": {
+        "promptVersion": "analysis-workflow-v1",
+        "promptVersionHash": "fixture-prompt-version-hash",
+        "generations": [
+          {
+            "schemaName": "final_article_analysis",
+            "model": "gpt-5-mini",
+            "responseId": "resp_fixture_utility",
+            "promptHash": "fixture-prompt-hash-utility",
+            "promptLength": 3500,
+            "generatedAt": "2026-07-14T12:00:00.000Z"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "battery-storage-project",
+    "allowedRelatedArticleIds": [301, 302],
+    "analysis": {
+      "articleId": 102,
+      "analysisVersion": "v1",
+      "overview": "A battery storage project moved into a new development phase.",
+      "whatHappened": [
+        {
+          "statement": "The article reports a new milestone for a grid-scale battery project.",
+          "sourceType": "article"
+        }
+      ],
+      "background": [
+        {
+          "statement": "Battery storage can provide capacity, energy shifting, and ancillary services depending on market rules.",
+          "sourceType": "model_background"
+        }
+      ],
+      "technicalConcepts": [
+        {
+          "term": "Ancillary services",
+          "explanation": "Ancillary services help grid operators maintain reliability through functions such as frequency regulation and reserves.",
+          "relevance": "Storage projects often earn revenue by providing these services."
+        }
+      ],
+      "stakeholderImpacts": [
+        {
+          "stakeholder": "Grid operator",
+          "impact": "Operational flexibility may increase if the project reaches service.",
+          "reasoning": "Fast-response storage can help manage short-duration supply and demand changes.",
+          "confidence": "medium"
+        }
+      ],
+      "uncertainties": [
+        {
+          "issue": "Commercial operation date",
+          "explanation": "The article does not confirm when the project will begin operating."
+        }
+      ],
+      "relatedArticles": [
+        {
+          "articleId": 301,
+          "title": "Storage developers expand project pipeline",
+          "url": "https://example.com/storage-pipeline",
+          "publishedAt": "2026-07-11T14:00:00.000Z"
+        }
+      ],
+      "contextLimitations": ["The article does not provide full interconnection or market participation details."],
+      "generatedAt": "2026-07-14T12:05:00.000Z",
+      "aiMetadata": {
+        "promptVersion": "analysis-workflow-v1",
+        "promptVersionHash": "fixture-prompt-version-hash",
+        "generations": [
+          {
+            "schemaName": "final_article_analysis",
+            "model": "gpt-5-mini",
+            "responseId": "resp_fixture_storage",
+            "promptHash": "fixture-prompt-hash-storage",
+            "promptLength": 3200,
+            "generatedAt": "2026-07-14T12:05:00.000Z"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "resource-adequacy-rule",
+    "allowedRelatedArticleIds": [401, 402],
+    "analysis": {
+      "articleId": 103,
+      "analysisVersion": "v1",
+      "overview": "A regulator is weighing changes to resource adequacy rules.",
+      "whatHappened": [
+        {
+          "statement": "The article says regulators are considering a rule change.",
+          "sourceType": "article"
+        }
+      ],
+      "background": [
+        {
+          "statement": "Resource adequacy rules are designed to ensure enough capacity is available during expected system stress.",
+          "sourceType": "model_background"
+        },
+        {
+          "statement": "A related stored article described prior stakeholder concerns about capacity accreditation.",
+          "sourceType": "related_article"
+        }
+      ],
+      "technicalConcepts": [
+        {
+          "term": "Resource adequacy",
+          "explanation": "Resource adequacy is the planning practice of ensuring enough dependable supply or demand-side capability exists to meet expected load.",
+          "relevance": "The rule change affects how reliability obligations are measured."
+        }
+      ],
+      "stakeholderImpacts": [
+        {
+          "stakeholder": "Generators",
+          "impact": "Revenue expectations may change if accreditation rules shift.",
+          "reasoning": "Capacity value affects how resources are compensated in adequacy frameworks.",
+          "confidence": "low"
+        }
+      ],
+      "uncertainties": [
+        {
+          "issue": "Final rule text",
+          "explanation": "The article describes consideration of a change, not a final adopted rule."
+        }
+      ],
+      "relatedArticles": [
+        {
+          "articleId": 401,
+          "title": "Stakeholders debate capacity accreditation",
+          "url": "https://example.com/capacity-accreditation",
+          "publishedAt": "2026-07-10T09:00:00.000Z"
+        }
+      ],
+      "contextLimitations": ["The article does not include the full proposed rule language."],
+      "generatedAt": "2026-07-14T12:10:00.000Z",
+      "aiMetadata": {
+        "promptVersion": "analysis-workflow-v1",
+        "promptVersionHash": "fixture-prompt-version-hash",
+        "generations": [
+          {
+            "schemaName": "final_article_analysis",
+            "model": "gpt-5-mini",
+            "responseId": "resp_fixture_adequacy",
+            "promptHash": "fixture-prompt-hash-adequacy",
+            "promptLength": 3400,
+            "generatedAt": "2026-07-14T12:10:00.000Z"
+          }
+        ]
+      }
+    }
+  }
+]
