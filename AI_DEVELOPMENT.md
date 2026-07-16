@@ -2,6 +2,12 @@
 
 This project treats the LLM workflow as a product subsystem, not as an opaque prompt call.
 
+## Purpose
+
+This document explains the engineering choices that make the AI portions of the project easier to inspect, test, and maintain. It is intended for reviewers, future maintainers, and AI coding assistants that need a quick map of the workflow boundaries.
+
+The project uses conventional software engineering practices first: clear TypeScript types, explicit API boundaries, focused tests, readable modules, and human review. AI tools can help with implementation, refactoring, and review, but generated suggestions should be treated as drafts that still need to be read, tested, and adjusted by a developer.
+
 ## Agent Design
 
 The analysis pipeline is split into narrow stages:
