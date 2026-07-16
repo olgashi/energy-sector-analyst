@@ -539,7 +539,6 @@ function FinalAnalysisView({ analysis }: { analysis: FinalAnalysis }) {
   return (
     <div className="final-analysis">
       <h2>Analysis</h2>
-      <p>{analysis.overview}</p>
       <AnalysisList
         title="What happened"
         items={analysis.whatHappened.map((item) => `${item.statement} (${item.sourceType})`)}

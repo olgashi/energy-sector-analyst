@@ -249,7 +249,7 @@ export async function runAnalysisWorkflow(
             prompt: [
               'Produce the final article analysis.',
               'Keep the final analysis concise without dropping essential context.',
-              'Overview: 2-3 sentences maximum.',
+              'Overview: exactly 1 short sentence for schema compatibility. It must not repeat specific details that belong in whatHappened.',
               'What happened: 3-5 short items maximum.',
               'Background: 4 short items maximum, only context that directly changes interpretation.',
               'Technical concept explanations should stay concise because the UI can expand them.',
